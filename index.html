@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>互動式 FTA 故障樹編輯器</title>
     <style>
         /* 基礎設定 */
@@ -44,6 +44,7 @@
             padding: 4px 8px;
             border-radius: 4px;
             transition: background 0.2s;
+            white-space: nowrap;
         }
         
         .editable-title:hover {
@@ -55,7 +56,13 @@
             background-color: #f8fafc;
         }
         
-        .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
+        .toolbar { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-wrap: wrap;
+        }
+        
         .btn-action {
             padding: 8px 14px;
             background-color: #3b82f6;
@@ -77,7 +84,14 @@
         .btn-load:hover { background-color: #d97706; }
 
         /* 圖例說明 */
-        .legend { display: flex; gap: 15px; font-size: 13px; align-items: center; margin-top: 5px; color: #64748b;}
+        .legend { 
+            display: flex; 
+            gap: 15px; 
+            font-size: 13px; 
+            align-items: center; 
+            margin-top: 5px; 
+            color: #64748b;
+        }
 
         /* 樹狀圖容器 (支援拖曳與滾動) */
         .tree-container {
@@ -85,6 +99,7 @@
             overflow: auto;
             padding: 60px;
             cursor: grab;
+            -webkit-overflow-scrolling: touch; /* iOS 順暢滑動 */
         }
         .tree-container:active { cursor: grabbing; }
 
@@ -259,6 +274,74 @@
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
+
+        /* =========================================
+           📱 手機版響應式設計 (Mobile Responsive)
+           ========================================= */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 12px 15px;
+                gap: 12px;
+            }
+            .header-title-wrapper {
+                width: 100%;
+            }
+            .editable-title {
+                font-size: 18px;
+                padding: 2px 4px;
+                white-space: normal; /* 允許長標題換行 */
+            }
+            
+            /* 工具列改為橫向滑動，避免變成多行擠壓版面 */
+            .toolbar {
+                width: 100%;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 5px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .btn-action {
+                white-space: nowrap;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            /* 隱藏佔空間的圖例與提示窗，給予最大畫布空間 */
+            .legend, .instruction-toast {
+                display: none !important;
+            }
+            
+            /* 縮小畫布預設邊距與節點大小 */
+            .tree-container {
+                padding: 30px 15px; 
+            }
+            .tree {
+                padding-right: 20px;
+            }
+            .node {
+                min-width: 140px;
+                max-width: 160px;
+                padding: 12px;
+            }
+            .title { font-size: 15px; }
+            .desc { font-size: 12px; }
+
+            /* 手機沒有 hover 功能，強制顯示控制按鈕，稍微縮小 */
+            .node-controls {
+                display: flex;
+                transform: scale(0.85);
+                top: -12px;
+                right: -12px;
+                opacity: 0.95;
+            }
+            .gate {
+                width: 40px; height: 40px;
+                font-size: 11px;
+                bottom: -2px;
+            }
+        }
 
         /* =========================================
            列印專用樣式 (@media print)
@@ -484,7 +567,7 @@
             }
         }
 
-        /* 畫布拖曳功能 */
+        /* 畫布拖曳功能 (電腦版滑鼠專用，手機版依賴原生的平滑滾動) */
         const slider = document.getElementById('treeContainer');
         let isDown = false;
         let startX, startY, scrollLeft, scrollTop;
