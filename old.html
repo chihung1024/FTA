@@ -27,23 +27,54 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 10px; }
         
-        .toolbar { display: flex; gap: 10px; align-items: center; }
+        /* 標題區域更新：改為可編輯 */
+        .header-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .editable-title { 
+            font-size: 20px; 
+            color: #0f172a; 
+            font-weight: bold;
+            display: inline-block;
+            cursor: text;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .editable-title:hover {
+            background-color: #f1f5f9;
+        }
+
+        .editable-title:focus {
+            outline: 2px dashed #3b82f6;
+            background-color: #f8fafc;
+        }
+        
+        .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
         .btn-action {
-            padding: 8px 16px;
+            padding: 8px 14px;
             background-color: #3b82f6;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             transition: background 0.2s;
+            display: flex; align-items: center; gap: 4px;
         }
         .btn-action:hover { background-color: #2563eb; }
         .btn-danger { background-color: #ef4444; }
         .btn-danger:hover { background-color: #dc2626; }
+        .btn-save { background-color: #10b981; }
+        .btn-save:hover { background-color: #059669; }
+        .btn-load { background-color: #f59e0b; }
+        .btn-load:hover { background-color: #d97706; }
 
         /* 圖例說明 */
         .legend { display: flex; gap: 15px; font-size: 13px; align-items: center; margin-top: 5px; color: #64748b;}
@@ -54,11 +85,18 @@
             overflow: auto;
             padding: 60px;
             cursor: grab;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
         }
         .tree-container:active { cursor: grabbing; }
+
+        /* 樹狀圖本體設定 */
+        .tree {
+            min-width: max-content; 
+            margin: 0 auto;         
+            display: flex;
+            justify-content: center;
+            padding-right: 60px;    
+            transition: transform 0.2s ease; /* 讓列印縮放時有些微過渡效果 */
+        }
 
         /* 樹狀圖 CSS 核心邏輯 */
         .tree ul {
@@ -75,21 +113,46 @@
             transition: all 0.3s;
         }
 
-        /* 繪製連接線 */
-        .tree li::before, .tree li::after {
-            content: ''; position: absolute; top: 0; right: 50%;
+        /* 繪製連接線 (優化版：解決末端粗細不一致與對齊問題) */
+        /* 預設：中間節點的水平線貫穿全部 */
+        .tree li::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 100%; height: 0;
             border-top: 2px solid #94a3b8;
-            width: 50%; height: 40px;
         }
+        /* 預設：中間節點的垂直線從正中央向下 */
         .tree li::after {
-            right: auto; left: 50%;
+            content: ''; position: absolute; top: 0; left: 50%;
             border-left: 2px solid #94a3b8;
+            width: 0; height: 40px;
+            margin-left: -1px;
         }
-        .tree li:only-child::after, .tree li:only-child::before { display: none; }
+        
+        /* 首個子節點：僅繪製右半段水平線與左側圓角垂直線 */
+        .tree li:first-child::before {
+            left: calc(50% - 1px);
+            width: calc(50% + 1px);
+            height: 40px;
+            border-left: 2px solid #94a3b8;
+            border-radius: 8px 0 0 0;
+        }
+        .tree li:first-child::after { display: none; }
+        
+        /* 末個子節點：僅繪製左半段水平線與右側圓角垂直線 */
+        .tree li:last-child::before {
+            left: 0;
+            width: calc(50% + 1px);
+            height: 40px;
+            border-right: 2px solid #94a3b8;
+            border-radius: 0 8px 0 0;
+        }
+        .tree li:last-child::after { display: none; }
+        
+        /* 唯一子節點：不需繪製自己的連線 (由父層 ul 連接) */
+        .tree li:only-child::before, .tree li:only-child::after { display: none; }
         .tree li:only-child { padding-top: 0; }
-        .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
-        .tree li:last-child::before { border-right: 2px solid #94a3b8; border-radius: 0 8px 0 0; }
-        .tree li:first-child::after { border-radius: 8px 0 0 0; }
+        
+        /* 來自父層的垂直連接線 */
         .tree ul ul::before {
             content: ''; position: absolute; top: 0; left: 50%;
             border-left: 2px solid #94a3b8;
@@ -138,16 +201,16 @@
         .title { font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #1e293b; line-height: 1.3; cursor: text;}
         .desc { font-size: 13px; color: #64748b; line-height: 1.5; cursor: text; min-height: 20px;}
 
-        /* 浮動控制按鈕 (Hover 顯示) */
+        /* 浮動控制按鈕 */
         .node-controls {
-            display: none; /* 預設隱藏 */
+            display: none; 
             position: absolute;
             top: -16px;
             right: -16px;
             gap: 4px;
             z-index: 20;
         }
-        .node:hover .node-controls { display: flex; } /* 懸停顯示 */
+        .node:hover .node-controls { display: flex; } 
         
         .ctrl-btn {
             width: 32px; height: 32px;
@@ -162,9 +225,9 @@
             transition: transform 0.1s;
         }
         .ctrl-btn:hover { transform: scale(1.1); }
-        .btn-add { background-color: #10b981; } /* 綠色新增 */
-        .btn-del { background-color: #ef4444; } /* 紅色刪除 */
-        .btn-color { background-color: #8b5cf6; font-size: 14px;} /* 紫色換色 */
+        .btn-add { background-color: #10b981; } 
+        .btn-del { background-color: #ef4444; } 
+        .btn-color { background-color: #8b5cf6; font-size: 14px;} 
 
         /* 邏輯閘 (AND / OR) */
         .gate {
@@ -197,6 +260,70 @@
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
 
+        /* =========================================
+           列印專用樣式 (@media print)
+           ========================================= */
+        @media print {
+            /* 預設紙張為橫向 (Landscape)，適合寬大樹狀圖 */
+            @page { size: landscape; margin: 10mm; }
+
+            body, html {
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important; /* 🌟關鍵：強制鎖定單頁，防止跑版與多餘空白頁 */
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* 隱藏不需印出的 UI */
+            .toolbar, .instruction-toast, .node-controls, .legend { display: none !important; }
+
+            .header {
+                box-shadow: none !important;
+                padding: 0 0 10px 0 !important;
+                border-bottom: 2px solid #e2e8f0;
+                justify-content: center !important; /* 標題置中，爭取更多下方空間 */
+            }
+
+            /* 列印時移除標題可編輯的樣式 */
+            .editable-title {
+                padding: 0 !important;
+                border: none !important;
+                background-color: transparent !important;
+            }
+
+            .tree-container {
+                overflow: hidden !important; /* 配合 body 強制單頁 */
+                height: auto !important;
+                padding: 10px 0 0 0 !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: flex-start !important;
+            }
+
+            .tree {
+                padding: 0 !important;
+                margin: 0 auto !important;
+                min-width: 0 !important; 
+            }
+
+            .node, .gate-wrapper, li, ul {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            /* 移除陰影讓列印更清晰 */
+            .node, .gate { box-shadow: none !important; border-width: 2px !important; }
+
+            /* 🌟關鍵修正：消除 PDF 引擎對圓角路徑(Curve)與直線(Rect)的抗鋸齒計算差異 */
+            /* 在列印時強制取消圓角，轉為直角連線，保證所有線段粗細100%均勻一致 */
+            .tree li::before, 
+            .tree li::after, 
+            .tree ul ul::before {
+                border-radius: 0 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -204,7 +331,10 @@
     <!-- 標題與工具列 -->
     <div class="header">
         <div>
-            <h1>🛠️ 互動式 FTA 故障樹編輯器</h1>
+            <div class="header-title-wrapper">
+                <span style="font-size: 20px;">🛠️</span>
+                <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+            </div>
             <div class="legend">
                 <span>🎨 節點顏色代表：</span>
                 <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
@@ -214,29 +344,29 @@
             </div>
         </div>
         <div class="toolbar">
-            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空為單一節點</button>
-            <button class="btn-action" onclick="window.print()">🖨️ 列印 / 存成PDF</button>
+            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
+            <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
+            <!-- 隱藏的檔案上傳元素 -->
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
+            <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
+            <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
         </div>
     </div>
 
     <!-- 樹狀圖區域 -->
     <div class="tree-container" id="treeContainer">
-        <div class="tree">
+        <div class="tree" id="mainTree">
             <ul id="rootTree">
-                <!-- 初始的頂端節點 -->
                 <li id="rootNode">
                     <div class="gate-wrapper">
                         <div class="node top">
-                            <!-- 浮動控制列 -->
                             <div class="node-controls">
                                 <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
                                 <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                                <!-- 頂節點不可刪除，故隱藏刪除按鈕 -->
                             </div>
                             <div class="title" contenteditable="true">頂事件 (Top Event)</div>
                             <div class="desc" contenteditable="true">請輸入事故或失效結果描述...</div>
                         </div>
-                        <!-- 邏輯閘會由 JS 動態生成 -->
                     </div>
                 </li>
             </ul>
@@ -247,15 +377,12 @@
     <div class="instruction-toast">
         💡 <b>操作指南：</b><br>
         1. <span>點擊文字</span>：直接編輯標題與描述。<br>
-        2. <span>滑鼠移至節點</span>：右上角會出現「➕ 新增」、「❌ 刪除」、「🎨 換色」按鈕。<br>
-        3. <span>點擊 AND/OR 圓圈</span>：可一鍵切換邏輯閘類型。<br>
-        4. <span>按住空白處拖曳</span>：可自由移動畫布視野。
+        2. <span>滑鼠移至節點</span>：出現「➕ 新增」、「❌ 刪除」、「🎨 換色」。<br>
+        3. <span>點擊 AND/OR 圓圈</span>：一鍵切換邏輯閘類型。<br>
+        4. <span>資料備份</span>：可匯出存成 JSON 檔，之後再匯入接續編輯。
     </div>
 
     <script>
-        /* =========================================
-           新節點的 HTML 模板 
-           ========================================= */
         const nodeTemplate = `
             <div class="gate-wrapper">
                 <div class="node normal">
@@ -270,38 +397,29 @@
             </div>
         `;
 
-        /* =========================================
-           事件代理 (Event Delegation) 處理所有按鈕點擊
-           ========================================= */
         document.getElementById('treeContainer').addEventListener('click', function(e) {
             const target = e.target;
 
-            // 1. 新增子節點 (➕)
             if (target.closest('.btn-add')) {
                 const li = target.closest('li');
                 let ul = li.querySelector(':scope > ul');
                 let wrapper = li.querySelector(':scope > .gate-wrapper');
                 
-                // 如果目前沒有子層級，需先建立 <ul> 以及邏輯閘
                 if (!ul) {
-                    // 新增邏輯閘 (預設為 OR)
                     const gate = document.createElement('div');
                     gate.className = 'gate or toggle-gate';
                     gate.textContent = 'OR';
                     wrapper.appendChild(gate);
                     
-                    // 新增 <ul> 容器
                     ul = document.createElement('ul');
                     li.appendChild(ul);
                 }
                 
-                // 建立新的 <li> 並塞入模板
                 const newLi = document.createElement('li');
                 newLi.innerHTML = nodeTemplate;
                 ul.appendChild(newLi);
             }
             
-            // 2. 刪除節點 (❌)
             if (target.closest('.btn-del')) {
                 const li = target.closest('li');
                 if (li.id === 'rootNode') {
@@ -312,9 +430,8 @@
                 if(confirm('確定要刪除此節點及其下方的所有分支嗎？')) {
                     const parentUl = li.parentElement;
                     const parentLi = parentUl.parentElement;
-                    li.remove(); // 移除該節點
+                    li.remove(); 
                     
-                    // 檢查父節點是否還有其他子節點，若無，則移除 <ul> 與 邏輯閘
                     if (parentUl.children.length === 0) {
                         parentUl.remove();
                         const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
@@ -323,7 +440,6 @@
                 }
             }
             
-            // 3. 切換邏輯閘 (AND <-> OR)
             if (target.classList.contains('toggle-gate')) {
                 if (target.classList.contains('or')) {
                     target.classList.replace('or', 'and');
@@ -334,10 +450,8 @@
                 }
             }
             
-            // 4. 切換節點顏色/類型 (🎨)
             if (target.closest('.btn-color')) {
                 const node = target.closest('.node');
-                // 顏色循環：normal(白) -> top(紅) -> branch(藍) -> critical(橘) -> normal(白)
                 if (node.classList.contains('normal')) {
                     node.classList.replace('normal', 'top');
                 } else if (node.classList.contains('top')) {
@@ -350,9 +464,6 @@
             }
         });
 
-        /* =========================================
-           清空畫布功能
-           ========================================= */
         function resetCanvas() {
             if(confirm('警告：這將會清除您目前編輯的所有內容，恢復成單一空白節點。確定執行？')) {
                 const rootTree = document.getElementById('rootTree');
@@ -373,21 +484,17 @@
             }
         }
 
-        /* =========================================
-           滑鼠拖曳畫布功能 (防衝突處理)
-           ========================================= */
+        /* 畫布拖曳功能 */
         const slider = document.getElementById('treeContainer');
         let isDown = false;
         let startX, startY, scrollLeft, scrollTop;
 
         slider.addEventListener('mousedown', (e) => {
-            // **關鍵**：如果點擊的是可編輯文字、按鈕或邏輯閘，則「不要」觸發畫布拖曳
             if (e.target.closest('[contenteditable]') || 
                 e.target.closest('.ctrl-btn') || 
                 e.target.closest('.gate')) {
                 return;
             }
-            
             isDown = true;
             slider.style.cursor = 'grabbing';
             startX = e.pageX - slider.offsetLeft;
@@ -404,10 +511,192 @@
             e.preventDefault();
             const x = e.pageX - slider.offsetLeft;
             const y = e.pageY - slider.offsetTop;
-            const walkX = (x - startX) * 1.5; // 調整拖曳靈敏度
+            const walkX = (x - startX) * 1.5; 
             const walkY = (y - startY) * 1.5;
             slider.scrollLeft = scrollLeft - walkX;
             slider.scrollTop = scrollTop - walkY;
+        });
+
+        /* =========================================================
+           樹狀資料 匯出 (Serialize) 與 匯入 (Deserialize)
+           ========================================================= */
+        
+        // 遞迴將 DOM 節點轉為 JSON 物件
+        function serializeNode(liElement) {
+            const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
+            if (!nodeDiv) return null;
+
+            const title = nodeDiv.querySelector('.title').innerText;
+            const desc = nodeDiv.querySelector('.desc').innerText;
+            
+            let colorClass = 'normal';
+            if (nodeDiv.classList.contains('top')) colorClass = 'top';
+            if (nodeDiv.classList.contains('branch')) colorClass = 'branch';
+            if (nodeDiv.classList.contains('critical')) colorClass = 'critical';
+
+            const gateDiv = liElement.querySelector(':scope > .gate-wrapper > .gate');
+            let gateType = null;
+            if (gateDiv) {
+                gateType = gateDiv.classList.contains('and') ? 'and' : 'or';
+            }
+
+            const childrenUl = liElement.querySelector(':scope > ul');
+            const children = [];
+            if (childrenUl) {
+                const childLis = childrenUl.querySelectorAll(':scope > li');
+                childLis.forEach(childLi => {
+                    const childData = serializeNode(childLi);
+                    if (childData) children.push(childData);
+                });
+            }
+
+            return { title, desc, colorClass, gateType, children };
+        }
+
+        // 觸發匯出 JSON 檔案下載
+        function exportTree() {
+            const rootLi = document.getElementById('rootNode');
+            const treeData = serializeNode(rootLi);
+            
+            // 獲取自訂標題
+            const projectTitle = document.getElementById('projectTitle').innerText;
+            const exportData = {
+                projectTitle: projectTitle,
+                treeData: treeData
+            };
+            
+            // 產生 JSON 字串並建立虛擬下載連結
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            
+            // 預設檔名加上專案標題與當前時間戳記
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            // 將不合法的檔名字符替換掉
+            const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `FTA_${safeTitle}_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode); 
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // 遞迴將 JSON 物件還原為 DOM 節點
+        function deserializeNode(data, isRoot = false) {
+            const li = document.createElement('li');
+            if (isRoot) li.id = 'rootNode';
+
+            const gateWrapper = document.createElement('div');
+            gateWrapper.className = 'gate-wrapper';
+            li.appendChild(gateWrapper);
+
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = `node ${data.colorClass}`;
+            gateWrapper.appendChild(nodeDiv);
+
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'node-controls';
+            controlsDiv.innerHTML = `
+                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
+            `;
+            nodeDiv.appendChild(controlsDiv);
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'title';
+            titleDiv.contentEditable = "true";
+            titleDiv.innerText = data.title;
+            nodeDiv.appendChild(titleDiv);
+
+            const descDiv = document.createElement('div');
+            descDiv.className = 'desc';
+            descDiv.contentEditable = "true";
+            descDiv.innerText = data.desc;
+            nodeDiv.appendChild(descDiv);
+
+            if (data.gateType && data.children && data.children.length > 0) {
+                const gateDiv = document.createElement('div');
+                gateDiv.className = `gate ${data.gateType} toggle-gate`;
+                gateDiv.innerText = data.gateType.toUpperCase();
+                gateWrapper.appendChild(gateDiv);
+            }
+
+            if (data.children && data.children.length > 0) {
+                const ul = document.createElement('ul');
+                data.children.forEach(childData => {
+                    ul.appendChild(deserializeNode(childData, false));
+                });
+                li.appendChild(ul);
+            }
+
+            return li;
+        }
+
+        // 處理匯入的檔案讀取與重建
+        function importTree(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsedData = JSON.parse(e.target.result);
+                    let treeData = parsedData;
+                    
+                    // 相容舊版匯出格式 (只有 treeData) 與新版格式 (包含 title)
+                    if (parsedData.projectTitle && parsedData.treeData) {
+                        document.getElementById('projectTitle').innerText = parsedData.projectTitle;
+                        treeData = parsedData.treeData;
+                    }
+
+                    const rootTree = document.getElementById('rootTree');
+                    
+                    // 清空畫布，還原備份資料
+                    rootTree.innerHTML = ''; 
+                    const rootNode = deserializeNode(treeData, true);
+                    rootTree.appendChild(rootNode);
+                    
+                    // 清空 input 讓同一個檔案能重複上傳
+                    event.target.value = '';
+                } catch (error) {
+                    alert('讀檔失敗！請確認上傳的是本系統匯出的 .json 格式檔案。');
+                    console.error("JSON解析錯誤:", error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /* =========================================================
+           自動縮放演算法 (Before Print / After Print Hook)
+           ========================================================= */
+        window.addEventListener('beforeprint', () => {
+            const tree = document.getElementById('mainTree');
+            tree.style.transform = 'none';
+            tree.style.zoom = '1';
+            
+            const MAX_PRINT_WIDTH = 1080; 
+            const MAX_PRINT_HEIGHT = 700;
+            const currentTreeWidth = tree.scrollWidth;
+            const currentTreeHeight = tree.scrollHeight;
+
+            const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
+            const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
+            const scaleRatio = Math.min(widthRatio, heightRatio, 1);
+
+            if (scaleRatio < 1) {
+                tree.style.zoom = scaleRatio;
+                if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+                    tree.style.transform = `scale(${scaleRatio})`;
+                    tree.style.transformOrigin = 'top center';
+                }
+            }
+        });
+
+        window.addEventListener('afterprint', () => {
+            const tree = document.getElementById('mainTree');
+            tree.style.transform = '';
+            tree.style.transformOrigin = '';
+            tree.style.zoom = '';
         });
     </script>
 </body>
