@@ -315,11 +315,11 @@
                 </div>
             </div>
             <div class="toolbar">
-                <button class="btn-action btn-danger" id="btn-clear">🗑️ 清空</button>
-                <button class="btn-action btn-save" id="btn-export">💾 匯出存檔(.json)</button>
+                <button type="button" class="btn-action btn-danger" id="btn-clear">🗑️ 清空</button>
+                <button type="button" class="btn-action btn-save" id="btn-export">💾 匯出存檔(.json)</button>
                 <input type="file" id="importFile" accept=".json" style="display: none;">
-                <button class="btn-action btn-load" id="btn-import">📂 匯入讀檔</button>
-                <button class="btn-action" id="btn-print">🖨️ 轉存PDF</button>
+                <button type="button" class="btn-action btn-load" id="btn-import">📂 匯入讀檔</button>
+                <button type="button" class="btn-action" id="btn-print">🖨️ 轉存PDF</button>
             </div>
         </div>
 
@@ -346,6 +346,7 @@
             'use strict';
 
             const COLOR_CYCLE = ['normal', 'top', 'branch', 'critical'];
+            const treeContainer = document.getElementById('treeContainer');
 
             /* =========================================================
                🛡️ UI 互動模組：自訂對話框 Modal
@@ -364,17 +365,20 @@
 
                 if (type === 'alert') {
                     const btnOk = document.createElement('button');
+                    btnOk.type = 'button';
                     btnOk.className = 'modal-btn modal-btn-ok';
                     btnOk.textContent = '確定';
                     btnOk.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
                     actionsEl.appendChild(btnOk);
                 } else {
                     const btnCancel = document.createElement('button');
+                    btnCancel.type = 'button';
                     btnCancel.className = 'modal-btn modal-btn-cancel';
                     btnCancel.textContent = '取消';
                     btnCancel.onclick = closeModal;
 
                     const btnConfirm = document.createElement('button');
+                    btnConfirm.type = 'button';
                     btnConfirm.className = 'modal-btn modal-btn-confirm';
                     btnConfirm.textContent = '確定';
                     btnConfirm.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
@@ -383,42 +387,68 @@
                     actionsEl.appendChild(btnConfirm);
                 }
                 overlay.classList.add('active');
+                
+                // 🛡️ 採納建議：強制重繪(Reflow)以確保重複開啟時能重播 Modal 動畫
+                const modalBox = overlay.querySelector('.modal-box');
+                if (modalBox) {
+                    modalBox.style.animation = 'none';
+                    void modalBox.offsetHeight; 
+                    modalBox.style.animation = '';
+                }
             }
 
-            // 支援 Esc 關閉 Modal
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    document.getElementById('modalOverlay').classList.remove('active');
-                }
-            });
-
             /* =========================================================
-               🔒 核心邏輯：動態建立 DOM 節點 (防護 XSS 注入)
+               🔒 核心邏輯：動態建立 DOM 節點 (100% 無 innerHTML，防護 XSS 與 Stack Overflow)
                ========================================================= */
-            function createNodeDOM(data = {}, isRoot = false) {
+            function createNodeDOM(data = {}, isRoot = false, depth = 0) {
                 const li = document.createElement('li');
                 if (isRoot) li.id = 'rootNode';
+
+                // 安全深度防衛，超過 50 層停止渲染該分支並給予警告
+                if (depth > 50) {
+                    console.warn('FTA 警告：超過最大深度限制 (50層)，已停止渲染後續分支以保護瀏覽器效能。');
+                    return li; 
+                }
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'gate-wrapper';
                 li.appendChild(wrapper);
 
                 const nodeDiv = document.createElement('div');
-                // 確保匯入的顏色類別是合法的
-                const color = COLOR_CYCLE.includes(data.colorClass) ? data.colorClass : (isRoot ? 'top' : 'normal');
+                
+                // 匯入時強制鎖定根節點顏色，避免語意混亂
+                const color = isRoot ? 'top' : (COLOR_CYCLE.includes(data.colorClass) ? data.colorClass : 'normal');
                 nodeDiv.className = `node ${color}`;
                 wrapper.appendChild(nodeDiv);
 
-                // 控制按鈕群
+                // 控制按鈕群 (🛡️ 採納建議：完全改用 createElement 避免未來維護不慎產生 XSS 漏洞)
                 const controls = document.createElement('div');
                 controls.className = 'node-controls';
                 
-                // 🛡️ 採納建議：鎖定根節點顏色，移除根節點的調色盤，避免語意混亂
-                controls.innerHTML = `
-                    ${!isRoot ? '<button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>' : ''}
-                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                    ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
-                `;
+                if (!isRoot) {
+                    const btnColor = document.createElement('button');
+                    btnColor.type = 'button';
+                    btnColor.className = 'ctrl-btn btn-color';
+                    btnColor.title = '切換節點顏色';
+                    btnColor.textContent = '🎨';
+                    controls.appendChild(btnColor);
+                }
+
+                const btnAdd = document.createElement('button');
+                btnAdd.type = 'button';
+                btnAdd.className = 'ctrl-btn btn-add';
+                btnAdd.title = '向下新增子節點';
+                btnAdd.textContent = '➕';
+                controls.appendChild(btnAdd);
+
+                if (!isRoot) {
+                    const btnDel = document.createElement('button');
+                    btnDel.type = 'button';
+                    btnDel.className = 'ctrl-btn btn-del';
+                    btnDel.title = '刪除此節點與下方分支';
+                    btnDel.textContent = '❌';
+                    controls.appendChild(btnDel);
+                }
                 nodeDiv.appendChild(controls);
 
                 // 標題輸入框
@@ -439,8 +469,8 @@
                 if (data.desc) descDiv.textContent = data.desc;
                 nodeDiv.appendChild(descDiv);
 
-                // 邏輯閘與子節點
-                if (data.children && data.children.length > 0) {
+                // 邏輯閘與子節點 
+                if (Array.isArray(data.children) && data.children.length > 0) {
                     const gateType = data.gateType === 'and' ? 'and' : 'or';
                     const gateDiv = document.createElement('div');
                     gateDiv.className = `gate ${gateType} toggle-gate`;
@@ -449,7 +479,10 @@
 
                     const ul = document.createElement('ul');
                     data.children.forEach(child => {
-                        ul.appendChild(createNodeDOM(child, false));
+                        // 內層嚴格檢查，確保 child 為物件且非陣列/null
+                        if (child && typeof child === 'object' && !Array.isArray(child)) {
+                            ul.appendChild(createNodeDOM(child, false, depth + 1));
+                        }
                     });
                     li.appendChild(ul);
                 }
@@ -468,7 +501,7 @@
             /* =========================================================
                🖱️ 畫布互動與事件委派 (Event Delegation)
                ========================================================= */
-            document.getElementById('treeContainer').addEventListener('click', function(e) {
+            treeContainer.addEventListener('click', function(e) {
                 const target = e.target;
 
                 // ➕ 新增子節點
@@ -489,7 +522,7 @@
                     ul.appendChild(createNodeDOM({}, false));
                 }
                 
-                // ❌ 刪除節點 (包含採納建議：遞迴向上清理空分支)
+                // ❌ 刪除節點 (遞迴向上清理空分支)
                 if (target.closest('.btn-del')) {
                     const li = target.closest('li');
                     if (li.id === 'rootNode') return; // 不應發生，按鈕已隱藏
@@ -505,12 +538,13 @@
                             // 遞迴向上清理：如果刪除後該層變成空的，就把該層的 ul 跟邏輯閘一起刪掉
                             while (currUl && currUl.id !== 'rootTree' && currUl.children.length === 0) {
                                 const parentLi = currUl.parentElement;
-                                currUl.remove();
+                                if (!parentLi) break; 
                                 
+                                currUl.remove();
                                 const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
                                 if (gate) gate.remove();
                                 
-                                currUl = parentLi.parentElement; // 繼續檢查上一層
+                                currUl = parentLi.parentElement; 
                             }
                         }
                     });
@@ -532,8 +566,32 @@
                 }
             });
 
+            // 修正 paste 事件，兼顧相容性與 DOM 乾淨度
+            treeContainer.addEventListener('paste', function(e) {
+                if (e.target.hasAttribute('contenteditable')) {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData('text/plain');
+                    
+                    // 優先使用 execCommand 確保字串合併乾淨且 undo 正常運作
+                    if (!document.execCommand('insertText', false, text)) {
+                        // Fallback: 針對已棄用或不支援 execCommand 的環境使用 Selection API
+                        const selection = window.getSelection();
+                        if (selection.rangeCount) {
+                            const range = selection.getRangeAt(0);
+                            range.deleteContents();
+                            const node = document.createTextNode(text);
+                            range.insertNode(node);
+                            range.setStartAfter(node); // 將游標定位到剛插入的文字後面
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }
+                }
+            });
+
             // 修正輸入框全刪除時的 <br> 殘留，讓 CSS 浮水印能正確顯示
-            document.getElementById('treeContainer').addEventListener('input', function(e) {
+            treeContainer.addEventListener('input', function(e) {
                 if (e.target.hasAttribute('contenteditable')) {
                     const html = e.target.innerHTML;
                     if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
@@ -542,60 +600,114 @@
                 }
             });
 
-            // 💡 刻意設計：標題輸入時按 Enter 產生失焦(防換行)，描述框則允許 Enter 換行打長文
-            document.addEventListener('keydown', function(e) {
-                if (e.target.classList.contains('title') || e.target.id === 'projectTitle') {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.target.blur();
+            // 🛡️ 採納建議：將 Title 長度限制改為 input 事件即時攔截，並精準處理 TextNode 游標歸位問題
+            document.getElementById('projectTitle').addEventListener('input', function() {
+                if (this.textContent.length > 100) {
+                    const truncated = this.textContent.substring(0, 100);
+                    // 覆寫並確保內部只剩下單一乾淨的 TextNode，避免之前貼上可能產生的節點碎片化
+                    this.textContent = truncated; 
+                    
+                    const textNode = this.firstChild;
+                    if (textNode) {
+                        const range = document.createRange();
+                        // 將游標精準設在該文字節點的末尾
+                        range.setStart(textNode, truncated.length);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
                     }
+                }
+            });
+
+            // 增加 focusout (blur) 檢查，清理殘留
+            treeContainer.addEventListener('focusout', function(e) {
+                if (e.target.hasAttribute('contenteditable')) {
+                    const html = e.target.innerHTML;
+                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
+                        e.target.innerHTML = '';
+                    }
+                }
+            });
+
+            // 合併 Global keydown 監聽器，減少事件開銷
+            document.addEventListener('keydown', function(e) {
+                // 1. Esc 關閉 Modal
+                if (e.key === 'Escape') {
+                    const overlay = document.getElementById('modalOverlay');
+                    if (overlay.classList.contains('active')) {
+                        overlay.classList.remove('active');
+                    }
+                }
+                
+                // 2. 標題防換行：標題輸入時按 Enter 產生失焦(防換行)，描述框則允許 Enter 換行打長文
+                if (e.key === 'Enter' && (e.target.classList.contains('title') || e.target.id === 'projectTitle')) {
+                    e.preventDefault();
+                    e.target.blur();
                 }
             });
 
             /* =========================================================
                🚀 拖曳效能優化 (RequestAnimationFrame & Touch Support)
                ========================================================= */
-            const slider = document.getElementById('treeContainer');
-            let isDown = false, startX, startY, scrollLeft, scrollTop, rafPending = false;
+            let isDown = false, startX, startY, scrollLeft, scrollTop, rafPending = false, rafId = null;
+            let currentMouseX = 0, currentMouseY = 0; // 儲存最新座標，解決 RAF 延遲問題
 
             const onDragStart = (x, y) => {
                 isDown = true;
-                slider.style.cursor = 'grabbing';
-                startX = x - slider.offsetLeft;
-                startY = y - slider.offsetTop;
-                scrollLeft = slider.scrollLeft;
-                scrollTop = slider.scrollTop;
+                treeContainer.style.cursor = 'grabbing';
+                startX = x - treeContainer.offsetLeft;
+                startY = y - treeContainer.offsetTop;
+                scrollLeft = treeContainer.scrollLeft;
+                scrollTop = treeContainer.scrollTop;
             };
 
             const onDragMove = (x, y) => {
-                if (!isDown || rafPending) return;
+                if (!isDown) return;
+                
+                // 記錄最即時的滑鼠位置，解耦事件觸發與畫面重繪
+                currentMouseX = x;
+                currentMouseY = y;
+                
+                if (rafPending) return;
                 rafPending = true;
-                requestAnimationFrame(() => {
-                    const walkX = ((x - slider.offsetLeft) - startX) * 1.5; 
-                    const walkY = ((y - slider.offsetTop) - startY) * 1.5;
-                    slider.scrollLeft = scrollLeft - walkX;
-                    slider.scrollTop = scrollTop - walkY;
+                rafId = requestAnimationFrame(() => {
+                    const walkX = ((currentMouseX - treeContainer.offsetLeft) - startX) * 1.5; 
+                    const walkY = ((currentMouseY - treeContainer.offsetTop) - startY) * 1.5;
+                    treeContainer.scrollLeft = scrollLeft - walkX;
+                    treeContainer.scrollTop = scrollTop - walkY;
                     rafPending = false;
                 });
             };
 
             const onDragEnd = () => {
                 isDown = false;
-                slider.style.cursor = 'grab';
+                treeContainer.style.cursor = 'grab';
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    // 🛡️ 採納建議：強制執行最後一幀的位移計算，確保滑鼠放開時精準停在正確座標，不丟失最後的移動量
+                    const walkX = ((currentMouseX - treeContainer.offsetLeft) - startX) * 1.5; 
+                    const walkY = ((currentMouseY - treeContainer.offsetTop) - startY) * 1.5;
+                    treeContainer.scrollLeft = scrollLeft - walkX;
+                    treeContainer.scrollTop = scrollTop - walkY;
+                    
+                    rafId = null;
+                    rafPending = false;
+                }
             };
 
             const isInteractive = (el) => el.closest('[contenteditable]') || el.closest('.ctrl-btn') || el.closest('.gate');
 
             // Mouse Events
-            slider.addEventListener('mousedown', (e) => { if (!isInteractive(e.target)) onDragStart(e.pageX, e.pageY); });
-            slider.addEventListener('mousemove', (e) => { if (isDown) { e.preventDefault(); onDragMove(e.pageX, e.pageY); }});
-            slider.addEventListener('mouseup', onDragEnd);
-            slider.addEventListener('mouseleave', onDragEnd);
+            treeContainer.addEventListener('mousedown', (e) => { if (!isInteractive(e.target)) onDragStart(e.pageX, e.pageY); });
+            treeContainer.addEventListener('mousemove', (e) => { if (isDown) { e.preventDefault(); onDragMove(e.pageX, e.pageY); }});
+            treeContainer.addEventListener('mouseup', onDragEnd);
+            treeContainer.addEventListener('mouseleave', onDragEnd);
 
             // Touch Events (Mobile)
-            slider.addEventListener('touchstart', (e) => { if (!isInteractive(e.target)) onDragStart(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
-            slider.addEventListener('touchmove', (e) => { if (isDown) onDragMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
-            slider.addEventListener('touchend', onDragEnd);
+            treeContainer.addEventListener('touchstart', (e) => { if (!isInteractive(e.target)) onDragStart(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
+            treeContainer.addEventListener('touchmove', (e) => { if (isDown) onDragMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
+            treeContainer.addEventListener('touchend', onDragEnd);
 
 
             /* =========================================================
@@ -622,9 +734,11 @@
                 const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
                 if (!nodeDiv) return null;
 
-                // 讀取真實內容，防護 XSS
-                const title = nodeDiv.querySelector('.title').textContent.trim();
-                const desc = nodeDiv.querySelector('.desc').textContent.trim();
+                const titleEl = nodeDiv.querySelector('.title');
+                const descEl = nodeDiv.querySelector('.desc');
+                
+                const title = titleEl ? titleEl.textContent.trim() : '';
+                const desc = descEl ? descEl.textContent.trim() : '';
                 const colorClass = COLOR_CYCLE.find(c => nodeDiv.classList.contains(c)) || 'normal';
 
                 const gateDiv = liElement.querySelector(':scope > .gate-wrapper > .gate');
@@ -639,42 +753,64 @@
                 return { title, desc, colorClass, gateType, children };
             }
 
-            // 🛡️ 採納建議：改用 Blob 取代 data URI 避免匯出大型樹狀圖時的網址過長限制
             function exportTree() {
-                const treeData = serializeNode(document.getElementById('rootNode'));
-                const projectTitle = document.getElementById('projectTitle').textContent.trim() || 'FTA_Project';
-                
-                const exportData = { projectTitle, treeData };
-                
-                // 使用 Blob 產生下載連結
-                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
-                const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
-                
-                a.href = url;
-                a.download = `FTA_${safeTitle}_${dateStr}.json`;
-                document.body.appendChild(a); 
-                a.click();
-                a.remove();
-                
-                // 下載後釋放記憶體
-                setTimeout(() => URL.revokeObjectURL(url), 100);
+                try {
+                    const treeData = serializeNode(document.getElementById('rootNode'));
+                    const projectTitle = document.getElementById('projectTitle').textContent.trim() || 'FTA_Project';
+                    
+                    const exportData = { projectTitle, treeData };
+                    
+                    // 使用 Blob 產生下載連結
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                    const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
+                    
+                    a.href = url;
+                    a.download = `FTA_${safeTitle}_${dateStr}.json`;
+                    document.body.appendChild(a); 
+                    a.click();
+                    a.remove();
+                    
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } catch (err) {
+                    showModal({
+                        title: '匯出失敗',
+                        message: '資料序列化失敗，請確認樹狀結構無異常。',
+                        type: 'alert'
+                    });
+                    console.error('Export Error:', err);
+                }
             }
 
             function importTree(event) {
                 const file = event.target.files[0];
                 if (!file) return;
 
+                if (file.size > 5 * 1024 * 1024) {
+                    showModal({ title: '檔案過大', message: '請選擇小於 5MB 的檔案。', type: 'alert' });
+                    event.target.value = '';
+                    return;
+                }
+
                 const reader = new FileReader();
+                
+                // 🛡️ 採納建議：補齊 FileReader 的 onerror 事件，防止檔案讀取中斷造成的靜默失敗
+                reader.onerror = function() {
+                    showModal({ title: '讀取失敗', message: '檔案讀取時發生錯誤，請再試一次。', type: 'alert' });
+                    event.target.value = '';
+                };
+
                 reader.onload = function(e) {
                     try {
                         const parsedData = JSON.parse(e.target.result);
                         let treeData = parsedData.treeData || parsedData;
                         
-                        if (!treeData || typeof treeData !== 'object') throw new Error('資料結構無效');
+                        if (!treeData || typeof treeData !== 'object' || Array.isArray(treeData)) {
+                            throw new Error('資料結構無效，必須為物件格式');
+                        }
 
                         if (parsedData.projectTitle) {
                             document.getElementById('projectTitle').textContent = String(parsedData.projectTitle).substring(0, 100);
@@ -684,7 +820,6 @@
                         rootTree.innerHTML = ''; 
                         rootTree.appendChild(createNodeDOM(treeData, true));
                         
-                        event.target.value = ''; // 重置 input
                     } catch (error) {
                         showModal({
                             title: '讀檔失敗',
@@ -692,9 +827,13 @@
                             type: 'alert'
                         });
                         console.error(error);
+                    } finally {
+                        event.target.value = '';
                     }
                 };
-                reader.readAsText(file);
+                
+                // 🛡️ 採納建議：明確指定 UTF-8 編碼，防止系統預設編碼造成的亂碼問題
+                reader.readAsText(file, 'UTF-8');
             }
 
             /* =========================================================
@@ -702,15 +841,14 @@
                ========================================================= */
             window.addEventListener('beforeprint', () => {
                 const printWrapper = document.getElementById('printWrapper');
-                
-                // 🛡️ 採納建議：改測量 mainTree，將 padding 列入計算才不會被切邊
                 const treeContent = document.getElementById('mainTree'); 
                 
                 printWrapper.style.transform = 'none';
-                printWrapper.style.zoom = '1';
                 
                 const MAX_PRINT_WIDTH = 1050; 
+                // 680px 預估來自 A4 橫向 (Landscape) 扣除邊界後的安全可視高度
                 const MAX_PRINT_HEIGHT = 680;
+                
                 const currentTreeWidth = treeContent.scrollWidth;
                 const currentTreeHeight = treeContent.scrollHeight;
 
@@ -720,7 +858,6 @@
                 let scaleRatio = Math.min(widthRatio, heightRatio);
                 if (scaleRatio > 1.25) scaleRatio = 1.25;
 
-                // 🛡️ 採納建議：使用 CSS.supports 功能偵測代替不穩定的 User-Agent 判斷
                 const supportsZoom = CSS.supports('zoom', '1');
                 
                 if (supportsZoom) {
@@ -730,6 +867,7 @@
                     printWrapper.style.transform = `scale(${scaleRatio})`;
                     printWrapper.style.transformOrigin = 'top center';
                     printWrapper.style.width = `${(1 / scaleRatio) * 100}%`;
+                    printWrapper.style.overflow = 'hidden'; 
                 }
             });
 
@@ -739,6 +877,7 @@
                 printWrapper.style.transformOrigin = '';
                 printWrapper.style.zoom = '';
                 printWrapper.style.width = '';
+                printWrapper.style.overflow = '';
             });
 
         })(); // 閉包結束
