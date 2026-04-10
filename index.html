@@ -54,7 +54,6 @@
             overflow: auto;
             padding: 60px;
             cursor: grab;
-            /* 移除原本的 display: flex; 與 center 對齊，避免子元素超出邊界時左側截斷 */
         }
         .tree-container:active { cursor: grabbing; }
 
@@ -203,6 +202,55 @@
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
+
+        /* =========================================
+           列印專用樣式 (@media print) - 解決截斷問題
+           ========================================= */
+        @media print {
+            /* 預設紙張為橫向 (Landscape)，適合寬大樹狀圖 */
+            @page { size: landscape; margin: 15mm; }
+
+            /* 解除高度與滾動限制，讓瀏覽器抓取完整內容 */
+            body, html {
+                height: auto !important;
+                overflow: visible !important;
+                background-color: white !important;
+            }
+
+            /* 隱藏不需印出的 UI */
+            .toolbar, .instruction-toast, .node-controls {
+                display: none !important;
+            }
+
+            .header {
+                box-shadow: none !important;
+                padding: 0 0 15px 0 !important;
+                border-bottom: 2px solid #e2e8f0;
+            }
+
+            /* 解除容器滾動，改為區塊顯示以完全展開 */
+            .tree-container {
+                overflow: visible !important;
+                height: auto !important;
+                padding: 10px 0 !important;
+                display: block !important;
+            }
+
+            .tree {
+                padding-right: 0 !important;
+                margin: 0 !important;
+                min-width: 0 !important; 
+            }
+
+            /* 確保節點或連接線不會在換頁時被切掉一半 */
+            .node, .gate-wrapper, li {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            /* 移除陰影讓列印更清晰節省墨水 */
+            .node, .gate { box-shadow: none !important; border-width: 1px !important; }
+        }
 
     </style>
 </head>
