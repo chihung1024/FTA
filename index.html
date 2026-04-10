@@ -29,21 +29,26 @@
         }
         .header h1 { font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 10px; }
         
-        .toolbar { display: flex; gap: 10px; align-items: center; }
+        .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
         .btn-action {
-            padding: 8px 16px;
+            padding: 8px 14px;
             background-color: #3b82f6;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             transition: background 0.2s;
+            display: flex; align-items: center; gap: 4px;
         }
         .btn-action:hover { background-color: #2563eb; }
         .btn-danger { background-color: #ef4444; }
         .btn-danger:hover { background-color: #dc2626; }
+        .btn-save { background-color: #10b981; }
+        .btn-save:hover { background-color: #059669; }
+        .btn-load { background-color: #f59e0b; }
+        .btn-load:hover { background-color: #d97706; }
 
         /* 圖例說明 */
         .legend { display: flex; gap: 15px; font-size: 13px; align-items: center; margin-top: 5px; color: #64748b;}
@@ -295,9 +300,12 @@
             </div>
         </div>
         <div class="toolbar">
-            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空為單一節點</button>
-            <!-- 點擊列印時，會自動觸發下方的 beforeprint 事件進行縮放 -->
-            <button class="btn-action" onclick="window.print()">🖨️ 列印 / 存成PDF</button>
+            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
+            <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
+            <!-- 隱藏的檔案上傳元素 -->
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
+            <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
+            <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
         </div>
     </div>
 
@@ -327,7 +335,7 @@
         1. <span>點擊文字</span>：直接編輯標題與描述。<br>
         2. <span>滑鼠移至節點</span>：出現「➕ 新增」、「❌ 刪除」、「🎨 換色」。<br>
         3. <span>點擊 AND/OR 圓圈</span>：一鍵切換邏輯閘類型。<br>
-        4. <span>自動縮放列印</span>：轉存 PDF 時，將自動縮小填滿一頁。
+        4. <span>資料備份</span>：可匯出存成 JSON 檔，之後再匯入接續編輯。
     </div>
 
     <script>
@@ -466,35 +474,156 @@
         });
 
         /* =========================================================
+           樹狀資料 匯出 (Serialize) 與 匯入 (Deserialize)
+           ========================================================= */
+        
+        // 遞迴將 DOM 節點轉為 JSON 物件
+        function serializeNode(liElement) {
+            const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
+            if (!nodeDiv) return null;
+
+            const title = nodeDiv.querySelector('.title').innerText;
+            const desc = nodeDiv.querySelector('.desc').innerText;
+            
+            let colorClass = 'normal';
+            if (nodeDiv.classList.contains('top')) colorClass = 'top';
+            if (nodeDiv.classList.contains('branch')) colorClass = 'branch';
+            if (nodeDiv.classList.contains('critical')) colorClass = 'critical';
+
+            const gateDiv = liElement.querySelector(':scope > .gate-wrapper > .gate');
+            let gateType = null;
+            if (gateDiv) {
+                gateType = gateDiv.classList.contains('and') ? 'and' : 'or';
+            }
+
+            const childrenUl = liElement.querySelector(':scope > ul');
+            const children = [];
+            if (childrenUl) {
+                const childLis = childrenUl.querySelectorAll(':scope > li');
+                childLis.forEach(childLi => {
+                    const childData = serializeNode(childLi);
+                    if (childData) children.push(childData);
+                });
+            }
+
+            return { title, desc, colorClass, gateType, children };
+        }
+
+        // 觸發匯出 JSON 檔案下載
+        function exportTree() {
+            const rootLi = document.getElementById('rootNode');
+            const treeData = serializeNode(rootLi);
+            
+            // 產生 JSON 字串並建立虛擬下載連結
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(treeData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            
+            // 預設檔名加上當前時間戳記
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `FTA_Backup_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode); 
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // 遞迴將 JSON 物件還原為 DOM 節點
+        function deserializeNode(data, isRoot = false) {
+            const li = document.createElement('li');
+            if (isRoot) li.id = 'rootNode';
+
+            const gateWrapper = document.createElement('div');
+            gateWrapper.className = 'gate-wrapper';
+            li.appendChild(gateWrapper);
+
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = `node ${data.colorClass}`;
+            gateWrapper.appendChild(nodeDiv);
+
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'node-controls';
+            controlsDiv.innerHTML = `
+                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
+            `;
+            nodeDiv.appendChild(controlsDiv);
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'title';
+            titleDiv.contentEditable = "true";
+            titleDiv.innerText = data.title;
+            nodeDiv.appendChild(titleDiv);
+
+            const descDiv = document.createElement('div');
+            descDiv.className = 'desc';
+            descDiv.contentEditable = "true";
+            descDiv.innerText = data.desc;
+            nodeDiv.appendChild(descDiv);
+
+            if (data.gateType && data.children && data.children.length > 0) {
+                const gateDiv = document.createElement('div');
+                gateDiv.className = `gate ${data.gateType} toggle-gate`;
+                gateDiv.innerText = data.gateType.toUpperCase();
+                gateWrapper.appendChild(gateDiv);
+            }
+
+            if (data.children && data.children.length > 0) {
+                const ul = document.createElement('ul');
+                data.children.forEach(childData => {
+                    ul.appendChild(deserializeNode(childData, false));
+                });
+                li.appendChild(ul);
+            }
+
+            return li;
+        }
+
+        // 處理匯入的檔案讀取與重建
+        function importTree(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const treeData = JSON.parse(e.target.result);
+                    const rootTree = document.getElementById('rootTree');
+                    
+                    // 清空畫布，還原備份資料
+                    rootTree.innerHTML = ''; 
+                    const rootNode = deserializeNode(treeData, true);
+                    rootTree.appendChild(rootNode);
+                    
+                    // 清空 input 讓同一個檔案能重複上傳
+                    event.target.value = '';
+                } catch (error) {
+                    alert('讀檔失敗！請確認上傳的是本系統匯出的 .json 格式檔案。');
+                    console.error("JSON解析錯誤:", error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /* =========================================================
            自動縮放演算法 (Before Print / After Print Hook)
            ========================================================= */
         window.addEventListener('beforeprint', () => {
             const tree = document.getElementById('mainTree');
-            
-            // 1. 先清除先前的縮放，取得最真實的展開尺寸
             tree.style.transform = 'none';
             tree.style.zoom = '1';
             
-            // 2. A4 橫向紙張可用區域 (扣除預設邊界與標題，寬度約 1080px，高度約 700px)
             const MAX_PRINT_WIDTH = 1080; 
             const MAX_PRINT_HEIGHT = 700;
-            
             const currentTreeWidth = tree.scrollWidth;
             const currentTreeHeight = tree.scrollHeight;
 
-            // 3. 計算縮放比
             const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
             const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
-
-            // 4. 取最小比例，確保長寬都能塞進同一頁
             const scaleRatio = Math.min(widthRatio, heightRatio, 1);
 
             if (scaleRatio < 1) {
-                // 🌟關鍵修正：改用 zoom 會實際改變 DOM 元素的排版流(Box Model)
-                // 這是解決瀏覽器列印引擎跨頁斷層的最佳解法
                 tree.style.zoom = scaleRatio;
-                
-                // 針對極少數不支援 zoom 的舊版 Firefox 加上 transform 備案
                 if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
                     tree.style.transform = `scale(${scaleRatio})`;
                     tree.style.transformOrigin = 'top center';
@@ -503,7 +632,6 @@
         });
 
         window.addEventListener('afterprint', () => {
-            // 列印完成後，徹底還原所有比例與狀態
             const tree = document.getElementById('mainTree');
             tree.style.transform = '';
             tree.style.transformOrigin = '';
