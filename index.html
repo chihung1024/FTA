@@ -212,35 +212,40 @@
             @page { size: landscape; margin: 10mm; }
 
             body, html {
-                height: auto !important;
-                overflow: visible !important;
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important; /* 🌟關鍵：強制鎖定單頁，防止跑版與多餘空白頁 */
                 background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             /* 隱藏不需印出的 UI */
-            .toolbar, .instruction-toast, .node-controls { display: none !important; }
+            .toolbar, .instruction-toast, .node-controls, .legend { display: none !important; }
 
             .header {
                 box-shadow: none !important;
                 padding: 0 0 10px 0 !important;
                 border-bottom: 2px solid #e2e8f0;
+                justify-content: center !important; /* 標題置中，爭取更多下方空間 */
             }
 
             .tree-container {
-                overflow: visible !important;
+                overflow: hidden !important; /* 配合 body 強制單頁 */
                 height: auto !important;
-                padding: 20px 0 !important;
-                display: block !important;
+                padding: 10px 0 0 0 !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: flex-start !important;
             }
 
             .tree {
-                padding-right: 0 !important;
+                padding: 0 !important;
                 margin: 0 auto !important;
                 min-width: 0 !important; 
-                transform-origin: top center !important;
             }
 
-            .node, .gate-wrapper, li {
+            .node, .gate-wrapper, li, ul {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
@@ -440,45 +445,44 @@
            ========================================================= */
         window.addEventListener('beforeprint', () => {
             const tree = document.getElementById('mainTree');
-            const container = document.getElementById('treeContainer');
             
-            // 先清除先前的縮放，取得最真實的展開尺寸
+            // 1. 先清除先前的縮放，取得最真實的展開尺寸
             tree.style.transform = 'none';
+            tree.style.zoom = '1';
             
-            // A4 橫向紙張可用區域 (扣除預設邊界後，寬度約 1050px，高度約 700px)
-            const MAX_PRINT_WIDTH = 1050; 
+            // 2. A4 橫向紙張可用區域 (扣除預設邊界與標題，寬度約 1080px，高度約 700px)
+            const MAX_PRINT_WIDTH = 1080; 
             const MAX_PRINT_HEIGHT = 700;
             
             const currentTreeWidth = tree.scrollWidth;
             const currentTreeHeight = tree.scrollHeight;
 
-            // 同時計算「寬度縮放比」與「高度縮放比」
+            // 3. 計算縮放比
             const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
             const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
 
-            // 取得最嚴格(最小)的比例，並乘上 0.95 留出安全邊緣，最大不超過 1 (不放大)
-            const scaleRatio = Math.min(widthRatio, heightRatio, 1) * 0.95;
+            // 4. 取最小比例，確保長寬都能塞進同一頁
+            const scaleRatio = Math.min(widthRatio, heightRatio, 1);
 
             if (scaleRatio < 1) {
-                // 使用 CSS transform scale 取代 zoom，相容性與排版穩定度更高
-                tree.style.transform = `scale(${scaleRatio})`;
-                tree.style.transformOrigin = 'top center';
+                // 🌟關鍵修正：改用 zoom 會實際改變 DOM 元素的排版流(Box Model)
+                // 這是解決瀏覽器列印引擎跨頁斷層的最佳解法
+                tree.style.zoom = scaleRatio;
                 
-                // 修正外層容器高度，避免縮小後下方留下過多空白頁數
-                container.style.height = `${currentTreeHeight * scaleRatio}px`;
-                container.style.overflow = 'hidden';
+                // 針對極少數不支援 zoom 的舊版 Firefox 加上 transform 備案
+                if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+                    tree.style.transform = `scale(${scaleRatio})`;
+                    tree.style.transformOrigin = 'top center';
+                }
             }
         });
 
         window.addEventListener('afterprint', () => {
-            // 列印完成或取消後，還原所有比例與狀態，讓使用者繼續在畫面上正常編輯
+            // 列印完成後，徹底還原所有比例與狀態
             const tree = document.getElementById('mainTree');
-            const container = document.getElementById('treeContainer');
-            
             tree.style.transform = '';
             tree.style.transformOrigin = '';
-            container.style.height = '';
-            container.style.overflow = 'auto';
+            tree.style.zoom = '';
         });
     </script>
 </body>
