@@ -54,11 +54,18 @@
             overflow: auto;
             padding: 60px;
             cursor: grab;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            /* 移除原本的 display: flex; 與 center 對齊，避免子元素超出邊界時左側截斷 */
         }
         .tree-container:active { cursor: grabbing; }
+
+        /* 樹狀圖本體設定 (解決超出版面截斷問題的核心) */
+        .tree {
+            min-width: max-content; /* 確保畫布寬度會跟隨節點數量無限延伸 */
+            margin: 0 auto;         /* 當內容小於視窗時維持置中；超出視窗時則向右延展 */
+            display: flex;
+            justify-content: center;
+            padding-right: 60px;    /* 確保右側滾動到底時仍有留白 */
+        }
 
         /* 樹狀圖 CSS 核心邏輯 */
         .tree ul {
