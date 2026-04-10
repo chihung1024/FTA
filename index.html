@@ -27,7 +27,33 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+        
+        /* 標題區域更新：改為可編輯 */
+        .header-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .editable-title { 
+            font-size: 20px; 
+            color: #0f172a; 
+            font-weight: bold;
+            display: inline-block;
+            cursor: text;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .editable-title:hover {
+            background-color: #f1f5f9;
+        }
+
+        .editable-title:focus {
+            outline: 2px dashed #3b82f6;
+            background-color: #f8fafc;
+        }
         
         .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
         .btn-action {
@@ -260,6 +286,13 @@
                 justify-content: center !important; /* 標題置中，爭取更多下方空間 */
             }
 
+            /* 列印時移除標題可編輯的樣式 */
+            .editable-title {
+                padding: 0 !important;
+                border: none !important;
+                background-color: transparent !important;
+            }
+
             .tree-container {
                 overflow: hidden !important; /* 配合 body 強制單頁 */
                 height: auto !important;
@@ -298,7 +331,10 @@
     <!-- 標題與工具列 -->
     <div class="header">
         <div>
-            <h1>🛠️ 互動式 FTA 故障樹編輯器</h1>
+            <div class="header-title-wrapper">
+                <span style="font-size: 20px;">🛠️</span>
+                <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+            </div>
             <div class="legend">
                 <span>🎨 節點顏色代表：</span>
                 <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
@@ -522,14 +558,23 @@
             const rootLi = document.getElementById('rootNode');
             const treeData = serializeNode(rootLi);
             
+            // 獲取自訂標題
+            const projectTitle = document.getElementById('projectTitle').innerText;
+            const exportData = {
+                projectTitle: projectTitle,
+                treeData: treeData
+            };
+            
             // 產生 JSON 字串並建立虛擬下載連結
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(treeData, null, 2));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
             const downloadAnchorNode = document.createElement('a');
             
-            // 預設檔名加上當前時間戳記
+            // 預設檔名加上專案標題與當前時間戳記
             const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            // 將不合法的檔名字符替換掉
+            const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `FTA_Backup_${dateStr}.json`);
+            downloadAnchorNode.setAttribute("download", `FTA_${safeTitle}_${dateStr}.json`);
             document.body.appendChild(downloadAnchorNode); 
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
@@ -595,7 +640,15 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const treeData = JSON.parse(e.target.result);
+                    const parsedData = JSON.parse(e.target.result);
+                    let treeData = parsedData;
+                    
+                    // 相容舊版匯出格式 (只有 treeData) 與新版格式 (包含 title)
+                    if (parsedData.projectTitle && parsedData.treeData) {
+                        document.getElementById('projectTitle').innerText = parsedData.projectTitle;
+                        treeData = parsedData.treeData;
+                    }
+
                     const rootTree = document.getElementById('rootTree');
                     
                     // 清空畫布，還原備份資料
