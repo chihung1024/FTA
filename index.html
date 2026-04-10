@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>互動式 FTA 故障樹編輯器</title>
     <style>
-        /* 基礎設定 */
+        /* =========================================
+           集中管理層級 (Z-Index) 與基礎設定
+           ========================================= */
+        :root {
+            --z-node     : 5;
+            --z-gate     : 10;
+            --z-controls : 20;
+            --z-header   : 50;
+            --z-toast    : 999;
+            --z-modal    : 1000;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -17,62 +28,37 @@
             overflow: hidden;
         }
 
-        /* 頂部標題與工具列 */
+        /* =========================================
+           頂部標題與工具列
+           ========================================= */
         .header {
             background-color: #fff;
             padding: 15px 30px;
             box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.1);
-            z-index: 100;
+            z-index: var(--z-header);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
-        /* 標題區域更新：改為可編輯 */
         .header-title-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: flex; align-items: center; gap: 10px;
         }
-        
         .editable-title { 
-            font-size: 20px; 
-            color: #0f172a; 
-            font-weight: bold;
-            display: inline-block;
-            cursor: text;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: background 0.2s;
-            white-space: nowrap;
+            font-size: 20px; color: #0f172a; font-weight: bold;
+            display: inline-block; cursor: text;
+            padding: 4px 8px; border-radius: 4px;
+            transition: background 0.2s; white-space: nowrap;
         }
-        
-        .editable-title:hover {
-            background-color: #f1f5f9;
-        }
-
-        .editable-title:focus {
-            outline: 2px dashed #3b82f6;
-            background-color: #f8fafc;
-        }
+        .editable-title:hover { background-color: #f1f5f9; }
+        .editable-title:focus { outline: 2px dashed #3b82f6; background-color: #f8fafc; }
         
         .toolbar { 
-            display: flex; 
-            gap: 8px; 
-            align-items: center; 
-            flex-wrap: wrap;
+            display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
         }
-        
         .btn-action {
-            padding: 8px 14px;
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-            transition: background 0.2s;
+            padding: 8px 14px; background-color: #3b82f6; color: white;
+            border: none; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: bold; transition: background 0.2s;
             display: flex; align-items: center; gap: 4px;
         }
         .btn-action:hover { background-color: #2563eb; }
@@ -83,263 +69,188 @@
         .btn-load { background-color: #f59e0b; }
         .btn-load:hover { background-color: #d97706; }
 
-        /* 圖例說明 */
         .legend { 
-            display: flex; 
-            gap: 15px; 
-            font-size: 13px; 
-            align-items: center; 
-            margin-top: 5px; 
-            color: #64748b;
+            display: flex; gap: 15px; font-size: 13px; 
+            align-items: center; margin-top: 5px; color: #64748b;
         }
 
-        /* 樹狀圖容器 (支援拖曳與滾動) */
+        /* =========================================
+           樹狀圖容器與排版核心
+           ========================================= */
         .tree-container {
-            flex: 1;
-            overflow: auto;
-            padding: 60px;
-            cursor: grab;
-            -webkit-overflow-scrolling: touch; /* iOS 順暢滑動 */
+            flex: 1; overflow: auto; padding: 60px;
+            cursor: grab; -webkit-overflow-scrolling: touch;
         }
         .tree-container:active { cursor: grabbing; }
 
-        /* 樹狀圖本體設定 */
         .tree {
-            min-width: max-content; 
-            margin: 0 auto;         
-            display: flex;
-            justify-content: center;
-            padding-right: 60px;    
-            transition: transform 0.2s ease; 
+            min-width: max-content; margin: 0 auto;         
+            display: flex; justify-content: center;
+            padding-right: 60px; transition: transform 0.2s ease; 
         }
-
-        /* 樹狀圖 CSS 核心邏輯 */
         .tree ul {
-            padding-top: 40px; 
-            position: relative;
-            display: flex;
-            justify-content: center;
+            padding-top: 40px; position: relative;
+            display: flex; justify-content: center;
         }
         .tree li {
-            float: left; text-align: center;
-            list-style-type: none;
-            position: relative;
-            padding: 40px 15px 0 15px;
-            transition: all 0.3s;
+            float: left; text-align: center; list-style-type: none;
+            position: relative; padding: 40px 15px 0 15px; transition: all 0.3s;
         }
 
-        /* 繪製連接線 */
+        /* 繪製完美的連接線 */
         .tree li::before {
             content: ''; position: absolute; top: 0; left: 0;
-            width: 100%; height: 0;
-            border-top: 2px solid #94a3b8;
+            width: 100%; height: 0; border-top: 2px solid #94a3b8;
         }
         .tree li::after {
             content: ''; position: absolute; top: 0; left: 50%;
-            border-left: 2px solid #94a3b8;
-            width: 0; height: 40px;
-            margin-left: -1px;
+            border-left: 2px solid #94a3b8; width: 0; height: 40px; margin-left: -1px;
         }
         .tree li:first-child::before {
-            left: calc(50% - 1px);
-            width: calc(50% + 1px);
-            height: 40px;
-            border-left: 2px solid #94a3b8;
-            border-radius: 8px 0 0 0;
+            left: calc(50% - 1px); width: calc(50% + 1px); height: 40px;
+            border-left: 2px solid #94a3b8; border-radius: 8px 0 0 0;
         }
         .tree li:first-child::after { display: none; }
         .tree li:last-child::before {
-            left: 0;
-            width: calc(50% + 1px);
-            height: 40px;
-            border-right: 2px solid #94a3b8;
-            border-radius: 0 8px 0 0;
+            left: 0; width: calc(50% + 1px); height: 40px;
+            border-right: 2px solid #94a3b8; border-radius: 0 8px 0 0;
         }
         .tree li:last-child::after { display: none; }
         .tree li:only-child::before, .tree li:only-child::after { display: none; }
         .tree li:only-child { padding-top: 0; }
         .tree ul ul::before {
             content: ''; position: absolute; top: 0; left: 50%;
-            border-left: 2px solid #94a3b8;
-            width: 0; height: 40px;
-            margin-left: -1px;
-        }
-
-        /* 節點樣式 */
-        .gate-wrapper { position: relative; display: inline-block; padding-bottom: 25px; }
-        .node {
-            background: #fff;
-            border: 2px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 16px;
-            min-width: 180px;
-            max-width: 220px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-            transition: all 0.2s ease;
-            position: relative;
-            z-index: 5;
-        }
-        .node:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-
-        /* 編輯狀態外框 */
-        [contenteditable="true"]:focus {
-            outline: 2px dashed #3b82f6;
-            outline-offset: 4px;
-            background: #f8fafc;
-            border-radius: 4px;
-            cursor: text;
+            border-left: 2px solid #94a3b8; width: 0; height: 40px; margin-left: -1px;
         }
 
         /* =========================================
-           🌟 浮水印功能 (Placeholder)
+           節點外觀與色彩
            ========================================= */
+        .gate-wrapper { position: relative; display: inline-block; padding-bottom: 25px; }
+        .node {
+            background: #fff; border: 2px solid #cbd5e1; border-radius: 8px;
+            padding: 16px; min-width: 180px; max-width: 220px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            transition: all 0.2s ease; position: relative; z-index: var(--z-node);
+        }
+        .node:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+
+        [contenteditable="true"]:focus {
+            outline: 2px dashed #3b82f6; outline-offset: 4px;
+            background: #f8fafc; border-radius: 4px; cursor: text;
+        }
+
+        /* 純 CSS 優雅浮水印 */
         [contenteditable="true"][data-placeholder]:empty::before {
-            content: attr(data-placeholder);
-            color: #94a3b8;
-            pointer-events: none;
-            cursor: text;
-            font-weight: normal; 
+            content: attr(data-placeholder); color: #94a3b8;
+            pointer-events: none; cursor: text; font-weight: normal; 
         }
         
-        /* 文字排版 */
         .title { 
-            font-weight: bold; 
-            font-size: 16px; 
-            margin-bottom: 8px; 
-            color: #1e293b; 
-            line-height: 1.3; 
-            cursor: text; 
-            min-height: 22px; 
+            font-weight: bold; font-size: 16px; margin-bottom: 8px; 
+            color: #1e293b; line-height: 1.3; cursor: text; min-height: 22px; 
         }
         .desc { 
-            font-size: 13px; 
-            color: #64748b; 
-            line-height: 1.5; 
-            cursor: text; 
-            min-height: 20px; 
+            font-size: 13px; color: #64748b; line-height: 1.5; 
+            cursor: text; min-height: 20px; 
         }
 
-        /* 節點色彩分類 */
         .node.top { border-color: #ef4444; background-color: #fef2f2; border-width: 3px; }
         .node.top .title { color: #b91c1c; }
-        
         .node.branch { border-color: #3b82f6; background-color: #eff6ff; }
         .node.branch .title { color: #1d4ed8; }
-        
         .node.critical { border-color: #f97316; background-color: #fff7ed; border-width: 3px; }
         .node.critical .title { color: #c2410c; }
-        
         .node.normal { border-color: #cbd5e1; background-color: #ffffff; }
 
-        /* 浮動控制按鈕 */
+        /* =========================================
+           UI 互動元件 (按鈕、邏輯閘、提示框)
+           ========================================= */
         .node-controls {
-            display: none; 
-            position: absolute;
-            top: -16px;
-            right: -16px;
-            gap: 4px;
-            z-index: 20;
+            display: none; position: absolute;
+            top: -16px; right: -16px; gap: 4px; z-index: var(--z-controls);
         }
         .node:hover .node-controls { display: flex; } 
         
         .ctrl-btn {
-            width: 32px; height: 32px;
-            border-radius: 50%;
-            border: none;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            color: white; font-size: 16px; font-weight: bold; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform 0.1s;
         }
         .ctrl-btn:hover { transform: scale(1.1); }
         .btn-add { background-color: #10b981; } 
         .btn-del { background-color: #ef4444; } 
         .btn-color { background-color: #8b5cf6; font-size: 14px;} 
 
-        /* 邏輯閘 (AND / OR) */
         .gate {
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 46px; height: 46px;
-            border-radius: 50%;
+            position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+            width: 46px; height: 46px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 800; 
-            z-index: 10;
-            box-shadow: 0 2px 5px rgb(0 0 0 / 0.15);
-            cursor: pointer;
-            transition: transform 0.2s;
-            user-select: none;
+            font-size: 12px; font-weight: 800; z-index: var(--z-gate);
+            box-shadow: 0 2px 5px rgb(0 0 0 / 0.15); cursor: pointer; user-select: none;
         }
         .gate:hover { transform: translateX(-50%) scale(1.1); }
         .gate.and { background-color: #fef08a; border: 2px solid #eab308; color: #a16207; }
         .gate.or { background-color: #e2e8f0; border: 2px solid #94a3b8; color: #475569; }
 
-        /* 提示小視窗 */
         .instruction-toast {
             position: fixed; bottom: 20px; right: 20px;
             background: rgba(15, 23, 42, 0.85); color: white;
-            padding: 12px 20px; border-radius: 8px;
-            font-size: 13px; line-height: 1.6;
-            pointer-events: none; z-index: 1000;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            padding: 12px 20px; border-radius: 8px; font-size: 13px; line-height: 1.6;
+            pointer-events: none; z-index: var(--z-toast); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
 
         /* =========================================
-           📱 手機版響應式設計 (Mobile Responsive)
+           🛡️ 自訂對話框 Modal (取代 alert/confirm)
+           ========================================= */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.5); z-index: var(--z-modal);
+            align-items: center; justify-content: center; backdrop-filter: blur(2px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: white; border-radius: 12px; padding: 24px 32px;
+            max-width: 420px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-box h3 { font-size: 18px; color: #0f172a; margin-bottom: 12px; }
+        .modal-box p  { font-size: 14px; color: #475569; margin-bottom: 24px; line-height: 1.6; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 8px 20px; border-radius: 6px; border: none;
+            font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s;
+        }
+        .modal-btn-cancel  { background: #e2e8f0; color: #334155; }
+        .modal-btn-cancel:hover  { background: #cbd5e1; }
+        .modal-btn-confirm { background: #ef4444; color: white; }
+        .modal-btn-confirm:hover { background: #dc2626; }
+        .modal-btn-ok      { background: #3b82f6; color: white; }
+        .modal-btn-ok:hover { background: #2563eb; }
+
+        /* =========================================
+           📱 手機版響應式設計
            ========================================= */
         @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 12px 15px;
-                gap: 12px;
-            }
+            .header { flex-direction: column; align-items: flex-start; padding: 12px 15px; gap: 12px; }
             .header-title-wrapper { width: 100%; }
-            .editable-title {
-                font-size: 18px;
-                padding: 2px 4px;
-                white-space: normal; 
-            }
-            .toolbar {
-                width: 100%;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                padding-bottom: 5px;
-                -webkit-overflow-scrolling: touch;
-            }
-            .btn-action {
-                white-space: nowrap;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
+            .editable-title { font-size: 18px; padding: 2px 4px; white-space: normal; }
+            .toolbar { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+            .btn-action { white-space: nowrap; padding: 8px 12px; font-size: 13px; }
             .legend, .instruction-toast { display: none !important; }
             .tree-container { padding: 30px 15px; }
             .tree { padding-right: 20px; }
-            .node {
-                min-width: 140px;
-                max-width: 160px;
-                padding: 12px;
-            }
+            .node { min-width: 140px; max-width: 160px; padding: 12px; }
             .title { font-size: 15px; }
             .desc { font-size: 12px; }
-            .node-controls {
-                display: flex;
-                transform: scale(0.85);
-                top: -12px;
-                right: -12px;
-                opacity: 0.95;
-            }
-            .gate {
-                width: 40px; height: 40px;
-                font-size: 11px;
-                bottom: -2px;
-            }
+            .node-controls { display: flex; transform: scale(0.85); top: -12px; right: -12px; opacity: 0.95; }
+            .gate { width: 40px; height: 40px; font-size: 11px; bottom: -2px; }
         }
 
         /* =========================================
@@ -348,58 +259,27 @@
         @media print {
             @page { size: landscape; margin: 10mm; }
             body, html {
-                width: 100% !important;
-                height: 100% !important;
-                overflow: hidden !important; 
-                background-color: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                width: 100% !important; height: 100% !important;
+                overflow: hidden !important; background-color: white !important;
+                margin: 0 !important; padding: 0 !important;
             }
-            .toolbar, .instruction-toast, .node-controls, .legend { display: none !important; }
+            .toolbar, .instruction-toast, .node-controls, .legend, .modal-overlay { display: none !important; }
             
             .header {
-                box-shadow: none !important;
-                padding: 0 0 15px 0 !important;
+                box-shadow: none !important; padding: 0 0 15px 0 !important;
                 border-bottom: 2px solid #e2e8f0 !important;
-                display: flex !important;
-                justify-content: center !important; 
+                display: flex !important; justify-content: center !important; 
             }
-            
-            .header > div:first-child {
-                width: 100% !important;
-                display: flex !important;
-                justify-content: center !important;
-                align-items: center !important;
-            }
-            .header-title-wrapper {
-                width: auto !important;
-                justify-content: center !important;
-            }
-
-            .editable-title {
-                padding: 0 !important;
-                border: none !important;
-                background-color: transparent !important;
-                text-align: center !important;
-            }
+            .header > div:first-child { width: 100% !important; display: flex !important; justify-content: center !important; }
+            .header-title-wrapper { justify-content: center !important; }
+            .editable-title { padding: 0 !important; border: none !important; background-color: transparent !important; }
 
             .tree-container {
-                overflow: hidden !important; 
-                height: auto !important;
-                padding: 10px 0 0 0 !important; /* 確保從頂端開始對齊，不垂直置中 */
-                display: flex !important;
-                justify-content: center !important;
-                align-items: flex-start !important; /* 🌟 維持向上對齊 */
+                overflow: hidden !important; height: auto !important; padding: 10px 0 0 0 !important; 
+                display: flex !important; justify-content: center !important; align-items: flex-start !important; 
             }
-            .tree {
-                padding: 0 !important;
-                margin: 0 auto !important;
-                min-width: 0 !important; 
-            }
-            .node, .gate-wrapper, li, ul {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }
+            .tree { padding: 0 !important; margin: 0 auto !important; min-width: 0 !important; }
+            .node, .gate-wrapper, li, ul { page-break-inside: avoid !important; break-inside: avoid !important; }
             .node, .gate { box-shadow: none !important; border-width: 2px !important; }
             .tree li::before, .tree li::after, .tree ul ul::before { border-radius: 0 !important; }
         }
@@ -407,14 +287,24 @@
 </head>
 <body>
 
-    <!-- 🌟 新增全局縮放容器 printWrapper，確保列印時「標題與樹狀圖」同步放大 -->
+    <!-- 🛡️ 自訂對話框 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+            <h3 id="modalTitle">提示</h3>
+            <p id="modalMessage"></p>
+            <div class="modal-actions" id="modalActions"></div>
+        </div>
+    </div>
+
+    <!-- 全局列印縮放容器 -->
     <div id="printWrapper" style="display: flex; flex-direction: column; height: 100%; width: 100%;">
+        
         <!-- 標題與工具列 -->
         <div class="header">
             <div>
                 <div class="header-title-wrapper">
                     <span style="font-size: 20px;">🛠️</span>
-                    <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+                    <div class="editable-title" contenteditable="true" id="projectTitle" spellcheck="false">互動式 FTA 故障樹編輯器</div>
                 </div>
                 <div class="legend">
                     <span>🎨 節點顏色代表：</span>
@@ -425,32 +315,19 @@
                 </div>
             </div>
             <div class="toolbar">
-                <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
-                <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
-                <!-- 隱藏的檔案上傳元素 -->
-                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
-                <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
-                <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
+                <!-- 移除 inline onclick，改用 EventListener 綁定 -->
+                <button class="btn-action btn-danger" id="btn-clear">🗑️ 清空</button>
+                <button class="btn-action btn-save" id="btn-export">💾 匯出存檔(.json)</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+                <button class="btn-action btn-load" id="btn-import">📂 匯入讀檔</button>
+                <button class="btn-action" id="btn-print">🖨️ 轉存PDF</button>
             </div>
         </div>
 
         <!-- 樹狀圖區域 -->
         <div class="tree-container" id="treeContainer">
             <div class="tree" id="mainTree">
-                <ul id="rootTree">
-                    <li id="rootNode">
-                        <div class="gate-wrapper">
-                            <div class="node top">
-                                <div class="node-controls">
-                                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                                </div>
-                                <div class="title" contenteditable="true" data-placeholder="頂事件 (Top Event)"></div>
-                                <div class="desc" contenteditable="true" data-placeholder="請輸入事故或失效結果描述..."></div>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
+                <ul id="rootTree"></ul>
             </div>
         </div>
     </div>
@@ -465,338 +342,385 @@
     </div>
 
     <script>
-        const nodeTemplate = `
-            <div class="gate-wrapper">
-                <div class="node normal">
-                    <div class="node-controls">
-                        <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                        <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                        <button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>
-                    </div>
-                    <div class="title" contenteditable="true" data-placeholder="新增事件"></div>
-                    <div class="desc" contenteditable="true" data-placeholder="點擊輸入描述..."></div>
-                </div>
-            </div>
-        `;
+        // 將所有邏輯封裝，避免污染全域變數
+        (() => {
+            'use strict';
 
-        document.getElementById('treeContainer').addEventListener('click', function(e) {
-            const target = e.target;
+            const COLOR_CYCLE = ['normal', 'top', 'branch', 'critical'];
 
-            if (target.closest('.btn-add')) {
-                const li = target.closest('li');
-                let ul = li.querySelector(':scope > ul');
-                let wrapper = li.querySelector(':scope > .gate-wrapper');
-                
-                if (!ul) {
-                    const gate = document.createElement('div');
-                    gate.className = 'gate or toggle-gate';
-                    gate.textContent = 'OR';
-                    wrapper.appendChild(gate);
+            /* =========================================================
+               🛡️ UI 互動模組：自訂對話框 Modal
+               ========================================================= */
+            function showModal({ title, message, type = 'confirm', onConfirm }) {
+                const overlay = document.getElementById('modalOverlay');
+                const titleEl = document.getElementById('modalTitle');
+                const messageEl = document.getElementById('modalMessage');
+                const actionsEl = document.getElementById('modalActions');
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                actionsEl.innerHTML = '';
+
+                const closeModal = () => overlay.classList.remove('active');
+
+                if (type === 'alert') {
+                    const btnOk = document.createElement('button');
+                    btnOk.className = 'modal-btn modal-btn-ok';
+                    btnOk.textContent = '確定';
+                    btnOk.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
+                    actionsEl.appendChild(btnOk);
+                } else {
+                    const btnCancel = document.createElement('button');
+                    btnCancel.className = 'modal-btn modal-btn-cancel';
+                    btnCancel.textContent = '取消';
+                    btnCancel.onclick = closeModal;
+
+                    const btnConfirm = document.createElement('button');
+                    btnConfirm.className = 'modal-btn modal-btn-confirm';
+                    btnConfirm.textContent = '確定';
+                    btnConfirm.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
                     
-                    ul = document.createElement('ul');
+                    actionsEl.appendChild(btnCancel);
+                    actionsEl.appendChild(btnConfirm);
+                }
+                overlay.classList.add('active');
+            }
+
+            /* =========================================================
+               🔒 核心邏輯：動態建立 DOM 節點 (徹底防範 XSS 注入)
+               ========================================================= */
+            function createNodeDOM(data = {}, isRoot = false) {
+                const li = document.createElement('li');
+                if (isRoot) li.id = 'rootNode';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'gate-wrapper';
+                li.appendChild(wrapper);
+
+                const nodeDiv = document.createElement('div');
+                // 確保匯入的顏色類別是合法的
+                const color = COLOR_CYCLE.includes(data.colorClass) ? data.colorClass : (isRoot ? 'top' : 'normal');
+                nodeDiv.className = `node ${color}`;
+                wrapper.appendChild(nodeDiv);
+
+                // 控制按鈕群
+                const controls = document.createElement('div');
+                controls.className = 'node-controls';
+                controls.innerHTML = `
+                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                    ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
+                `;
+                nodeDiv.appendChild(controls);
+
+                // 標題輸入框
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'title';
+                titleDiv.contentEditable = "true";
+                titleDiv.spellcheck = false;
+                titleDiv.setAttribute('data-placeholder', isRoot ? '頂事件 (Top Event)' : '新增事件');
+                if (data.title) titleDiv.textContent = data.title; // 使用 textContent 防護 HTML 標籤
+                nodeDiv.appendChild(titleDiv);
+
+                // 描述輸入框
+                const descDiv = document.createElement('div');
+                descDiv.className = 'desc';
+                descDiv.contentEditable = "true";
+                descDiv.spellcheck = false;
+                descDiv.setAttribute('data-placeholder', isRoot ? '請輸入事故或失效結果描述...' : '點擊輸入描述...');
+                if (data.desc) descDiv.textContent = data.desc;
+                nodeDiv.appendChild(descDiv);
+
+                // 邏輯閘與子節點
+                if (data.children && data.children.length > 0) {
+                    const gateType = data.gateType === 'and' ? 'and' : 'or';
+                    const gateDiv = document.createElement('div');
+                    gateDiv.className = `gate ${gateType} toggle-gate`;
+                    gateDiv.textContent = gateType.toUpperCase();
+                    wrapper.appendChild(gateDiv);
+
+                    const ul = document.createElement('ul');
+                    data.children.forEach(child => {
+                        ul.appendChild(createNodeDOM(child, false));
+                    });
                     li.appendChild(ul);
                 }
-                
-                const newLi = document.createElement('li');
-                newLi.innerHTML = nodeTemplate;
-                ul.appendChild(newLi);
+
+                return li;
             }
-            
-            if (target.closest('.btn-del')) {
-                const li = target.closest('li');
-                if (li.id === 'rootNode') {
-                    alert('頂層節點為樹狀圖根基，不可刪除！請使用右上角「清空」功能。');
-                    return;
+
+            // 初始化畫布
+            function initCanvas() {
+                const rootTree = document.getElementById('rootTree');
+                rootTree.innerHTML = '';
+                rootTree.appendChild(createNodeDOM({}, true));
+            }
+            initCanvas(); // 載入時執行
+
+            /* =========================================================
+               🖱️ 畫布互動與事件委派 (Event Delegation)
+               ========================================================= */
+            document.getElementById('treeContainer').addEventListener('click', function(e) {
+                const target = e.target;
+
+                // ➕ 新增子節點
+                if (target.closest('.btn-add')) {
+                    const li = target.closest('li');
+                    let ul = li.querySelector(':scope > ul');
+                    let wrapper = li.querySelector(':scope > .gate-wrapper');
+                    
+                    if (!ul) {
+                        const gate = document.createElement('div');
+                        gate.className = 'gate or toggle-gate';
+                        gate.textContent = 'OR';
+                        wrapper.appendChild(gate);
+                        
+                        ul = document.createElement('ul');
+                        li.appendChild(ul);
+                    }
+                    ul.appendChild(createNodeDOM({}, false));
                 }
                 
-                if(confirm('確定要刪除此節點及其下方的所有分支嗎？')) {
-                    const parentUl = li.parentElement;
-                    const parentLi = parentUl.parentElement;
-                    li.remove(); 
+                // ❌ 刪除節點
+                if (target.closest('.btn-del')) {
+                    const li = target.closest('li');
+                    if (li.id === 'rootNode') return; // 不應發生，按鈕已隱藏
                     
-                    if (parentUl.children.length === 0) {
-                        parentUl.remove();
-                        const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
-                        if (gate) gate.remove();
+                    showModal({
+                        title: '確認刪除',
+                        message: '確定要刪除此節點及其下方的所有分支嗎？此操作無法復原。',
+                        type: 'confirm',
+                        onConfirm: () => {
+                            const parentUl = li.parentElement;
+                            const parentLi = parentUl.parentElement;
+                            li.remove(); 
+                            // 若無其他子節點，清理空 ul 與邏輯閘
+                            if (parentUl.children.length === 0) {
+                                parentUl.remove();
+                                const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
+                                if (gate) gate.remove();
+                            }
+                        }
+                    });
+                }
+                
+                // 切換 AND/OR
+                if (target.classList.contains('toggle-gate')) {
+                    const isOr = target.classList.contains('or');
+                    target.className = `gate ${isOr ? 'and' : 'or'} toggle-gate`;
+                    target.textContent = isOr ? 'AND' : 'OR';
+                }
+                
+                // 切換顏色
+                if (target.closest('.btn-color')) {
+                    const node = target.closest('.node');
+                    const currentClass = COLOR_CYCLE.find(c => node.classList.contains(c)) || 'normal';
+                    const nextClass = COLOR_CYCLE[(COLOR_CYCLE.indexOf(currentClass) + 1) % COLOR_CYCLE.length];
+                    node.classList.replace(currentClass, nextClass);
+                }
+            });
+
+            // 修正輸入框全刪除時的 <br> 殘留，讓 CSS 浮水印能正確顯示
+            document.getElementById('treeContainer').addEventListener('input', function(e) {
+                if (e.target.hasAttribute('contenteditable')) {
+                    const html = e.target.innerHTML;
+                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
+                        e.target.innerHTML = '';
                     }
                 }
-            }
-            
-            if (target.classList.contains('toggle-gate')) {
-                if (target.classList.contains('or')) {
-                    target.classList.replace('or', 'and');
-                    target.textContent = 'AND';
-                } else {
-                    target.classList.replace('and', 'or');
-                    target.textContent = 'OR';
+            });
+
+            // 防止標題輸入時按 Enter 產生換行
+            document.addEventListener('keydown', function(e) {
+                if (e.target.classList.contains('title') || e.target.id === 'projectTitle') {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.target.blur();
+                    }
                 }
-            }
-            
-            if (target.closest('.btn-color')) {
-                const node = target.closest('.node');
-                if (node.classList.contains('normal')) {
-                    node.classList.replace('normal', 'top');
-                } else if (node.classList.contains('top')) {
-                    node.classList.replace('top', 'branch');
-                } else if (node.classList.contains('branch')) {
-                    node.classList.replace('branch', 'critical');
-                } else {
-                    node.classList.replace('critical', 'normal');
-                }
-            }
-        });
+            });
 
-        // 修正瀏覽器清空 contenteditable 時會塞入 <br> 導致浮水印出不來的問題
-        document.getElementById('treeContainer').addEventListener('input', function(e) {
-            if (e.target.hasAttribute('contenteditable')) {
-                if (e.target.innerHTML === '<br>' || e.target.innerHTML === '&nbsp;') {
-                    e.target.innerHTML = '';
-                }
-            }
-        });
+            /* =========================================================
+               🚀 拖曳效能優化 (RequestAnimationFrame & Touch Support)
+               ========================================================= */
+            const slider = document.getElementById('treeContainer');
+            let isDown = false, startX, startY, scrollLeft, scrollTop, rafPending = false;
 
-        function resetCanvas() {
-            if(confirm('警告：這將會清除您目前編輯的所有內容，恢復成單一空白節點。確定執行？')) {
-                const rootTree = document.getElementById('rootTree');
-                rootTree.innerHTML = `
-                    <li id="rootNode">
-                        <div class="gate-wrapper">
-                            <div class="node top">
-                                <div class="node-controls">
-                                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                                </div>
-                                <div class="title" contenteditable="true" data-placeholder="新的頂事件"></div>
-                                <div class="desc" contenteditable="true" data-placeholder="點擊這裡開始編輯..."></div>
-                            </div>
-                        </div>
-                    </li>
-                `;
-            }
-        }
+            const onDragStart = (x, y) => {
+                isDown = true;
+                slider.style.cursor = 'grabbing';
+                startX = x - slider.offsetLeft;
+                startY = y - slider.offsetTop;
+                scrollLeft = slider.scrollLeft;
+                scrollTop = slider.scrollTop;
+            };
 
-        /* 畫布拖曳功能 */
-        const slider = document.getElementById('treeContainer');
-        let isDown = false;
-        let startX, startY, scrollLeft, scrollTop;
+            const onDragMove = (x, y) => {
+                if (!isDown || rafPending) return;
+                rafPending = true;
+                requestAnimationFrame(() => {
+                    const walkX = ((x - slider.offsetLeft) - startX) * 1.5; 
+                    const walkY = ((y - slider.offsetTop) - startY) * 1.5;
+                    slider.scrollLeft = scrollLeft - walkX;
+                    slider.scrollTop = scrollTop - walkY;
+                    rafPending = false;
+                });
+            };
 
-        slider.addEventListener('mousedown', (e) => {
-            if (e.target.closest('[contenteditable]') || 
-                e.target.closest('.ctrl-btn') || 
-                e.target.closest('.gate')) {
-                return;
-            }
-            isDown = true;
-            slider.style.cursor = 'grabbing';
-            startX = e.pageX - slider.offsetLeft;
-            startY = e.pageY - slider.offsetTop;
-            scrollLeft = slider.scrollLeft;
-            scrollTop = slider.scrollTop;
-        });
-        
-        slider.addEventListener('mouseleave', () => { isDown = false; slider.style.cursor = 'grab'; });
-        slider.addEventListener('mouseup', () => { isDown = false; slider.style.cursor = 'grab'; });
-        
-        slider.addEventListener('mousemove', (e) => {
-            if(!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - slider.offsetLeft;
-            const y = e.pageY - slider.offsetTop;
-            const walkX = (x - startX) * 1.5; 
-            const walkY = (y - startY) * 1.5;
-            slider.scrollLeft = scrollLeft - walkX;
-            slider.scrollTop = scrollTop - walkY;
-        });
+            const onDragEnd = () => {
+                isDown = false;
+                slider.style.cursor = 'grab';
+            };
 
-        /* =========================================================
-           樹狀資料 匯出 (Serialize) 與 匯入 (Deserialize)
-           ========================================================= */
-        
-        function serializeNode(liElement) {
-            const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
-            if (!nodeDiv) return null;
+            const isInteractive = (el) => el.closest('[contenteditable]') || el.closest('.ctrl-btn') || el.closest('.gate');
 
-            const title = nodeDiv.querySelector('.title').innerText;
-            const desc = nodeDiv.querySelector('.desc').innerText;
-            
-            let colorClass = 'normal';
-            if (nodeDiv.classList.contains('top')) colorClass = 'top';
-            if (nodeDiv.classList.contains('branch')) colorClass = 'branch';
-            if (nodeDiv.classList.contains('critical')) colorClass = 'critical';
+            // Mouse Events
+            slider.addEventListener('mousedown', (e) => { if (!isInteractive(e.target)) onDragStart(e.pageX, e.pageY); });
+            slider.addEventListener('mousemove', (e) => { if (isDown) { e.preventDefault(); onDragMove(e.pageX, e.pageY); }});
+            slider.addEventListener('mouseup', onDragEnd);
+            slider.addEventListener('mouseleave', onDragEnd);
 
-            const gateDiv = liElement.querySelector(':scope > .gate-wrapper > .gate');
-            let gateType = null;
-            if (gateDiv) {
-                gateType = gateDiv.classList.contains('and') ? 'and' : 'or';
-            }
+            // Touch Events (Mobile)
+            slider.addEventListener('touchstart', (e) => { if (!isInteractive(e.target)) onDragStart(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
+            slider.addEventListener('touchmove', (e) => { if (isDown) onDragMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
+            slider.addEventListener('touchend', onDragEnd);
 
-            const childrenUl = liElement.querySelector(':scope > ul');
-            const children = [];
-            if (childrenUl) {
-                const childLis = childrenUl.querySelectorAll(':scope > li');
-                childLis.forEach(childLi => {
+
+            /* =========================================================
+               💾 工具列按鈕綁定與 匯出/匯入邏輯
+               ========================================================= */
+            document.getElementById('btn-clear').addEventListener('click', () => {
+                showModal({
+                    title: '清空畫布',
+                    message: '這將會清除您目前編輯的所有內容，並恢復為初始狀態。確定執行？',
+                    type: 'confirm',
+                    onConfirm: () => {
+                        document.getElementById('projectTitle').textContent = '互動式 FTA 故障樹編輯器';
+                        initCanvas();
+                    }
+                });
+            });
+
+            document.getElementById('btn-export').addEventListener('click', exportTree);
+            document.getElementById('btn-import').addEventListener('click', () => document.getElementById('importFile').click());
+            document.getElementById('btn-print').addEventListener('click', () => window.print());
+            document.getElementById('importFile').addEventListener('change', importTree);
+
+            function serializeNode(liElement) {
+                const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
+                if (!nodeDiv) return null;
+
+                // 讀取真實內容，防護 XSS
+                const title = nodeDiv.querySelector('.title').textContent.trim();
+                const desc = nodeDiv.querySelector('.desc').textContent.trim();
+                const colorClass = COLOR_CYCLE.find(c => nodeDiv.classList.contains(c)) || 'normal';
+
+                const gateDiv = liElement.querySelector(':scope > .gate-wrapper > .gate');
+                const gateType = gateDiv ? (gateDiv.classList.contains('and') ? 'and' : 'or') : null;
+
+                const children = [];
+                liElement.querySelectorAll(':scope > ul > li').forEach(childLi => {
                     const childData = serializeNode(childLi);
                     if (childData) children.push(childData);
                 });
+
+                return { title, desc, colorClass, gateType, children };
             }
 
-            return { title, desc, colorClass, gateType, children };
-        }
-
-        function exportTree() {
-            const rootLi = document.getElementById('rootNode');
-            const treeData = serializeNode(rootLi);
-            
-            const projectTitle = document.getElementById('projectTitle').innerText;
-            const exportData = {
-                projectTitle: projectTitle,
-                treeData: treeData
-            };
-            
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            
-            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
-            const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `FTA_${safeTitle}_${dateStr}.json`);
-            document.body.appendChild(downloadAnchorNode); 
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-
-        function deserializeNode(data, isRoot = false) {
-            const li = document.createElement('li');
-            if (isRoot) li.id = 'rootNode';
-
-            const gateWrapper = document.createElement('div');
-            gateWrapper.className = 'gate-wrapper';
-            li.appendChild(gateWrapper);
-
-            const nodeDiv = document.createElement('div');
-            nodeDiv.className = `node ${data.colorClass}`;
-            gateWrapper.appendChild(nodeDiv);
-
-            const controlsDiv = document.createElement('div');
-            controlsDiv.className = 'node-controls';
-            controlsDiv.innerHTML = `
-                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
-                ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
-            `;
-            nodeDiv.appendChild(controlsDiv);
-
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'title';
-            titleDiv.contentEditable = "true";
-            titleDiv.setAttribute('data-placeholder', isRoot ? '頂事件 (Top Event)' : '新增事件');
-            if(data.title && data.title.trim() !== "") {
-                titleDiv.innerText = data.title;
-            }
-            nodeDiv.appendChild(titleDiv);
-
-            const descDiv = document.createElement('div');
-            descDiv.className = 'desc';
-            descDiv.contentEditable = "true";
-            descDiv.setAttribute('data-placeholder', isRoot ? '請輸入事故或失效結果描述...' : '點擊輸入描述...');
-            if(data.desc && data.desc.trim() !== "") {
-                descDiv.innerText = data.desc;
-            }
-            nodeDiv.appendChild(descDiv);
-
-            if (data.gateType && data.children && data.children.length > 0) {
-                const gateDiv = document.createElement('div');
-                gateDiv.className = `gate ${data.gateType} toggle-gate`;
-                gateDiv.innerText = data.gateType.toUpperCase();
-                gateWrapper.appendChild(gateDiv);
+            function exportTree() {
+                const treeData = serializeNode(document.getElementById('rootNode'));
+                const projectTitle = document.getElementById('projectTitle').textContent.trim() || 'FTA_Project';
+                
+                const exportData = { projectTitle, treeData };
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                const a = document.createElement('a');
+                
+                const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
+                
+                a.href = dataStr;
+                a.download = `FTA_${safeTitle}_${dateStr}.json`;
+                document.body.appendChild(a); 
+                a.click();
+                a.remove();
             }
 
-            if (data.children && data.children.length > 0) {
-                const ul = document.createElement('ul');
-                data.children.forEach(childData => {
-                    ul.appendChild(deserializeNode(childData, false));
-                });
-                li.appendChild(ul);
-            }
+            function importTree(event) {
+                const file = event.target.files[0];
+                if (!file) return;
 
-            return li;
-        }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const parsedData = JSON.parse(e.target.result);
+                        let treeData = parsedData.treeData || parsedData;
+                        
+                        if (!treeData || typeof treeData !== 'object') throw new Error('資料結構無效');
 
-        function importTree(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+                        if (parsedData.projectTitle) {
+                            document.getElementById('projectTitle').textContent = String(parsedData.projectTitle).substring(0, 100);
+                        }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsedData = JSON.parse(e.target.result);
-                    let treeData = parsedData;
-                    
-                    if (parsedData.projectTitle && parsedData.treeData) {
-                        document.getElementById('projectTitle').innerText = parsedData.projectTitle;
-                        treeData = parsedData.treeData;
+                        const rootTree = document.getElementById('rootTree');
+                        rootTree.innerHTML = ''; 
+                        rootTree.appendChild(createNodeDOM(treeData, true));
+                        
+                        event.target.value = ''; // 重置 input
+                    } catch (error) {
+                        showModal({
+                            title: '讀檔失敗',
+                            message: '無法解析此檔案。請確認上傳的是本系統匯出的 .json 格式檔案。',
+                            type: 'alert'
+                        });
+                        console.error(error);
                     }
+                };
+                reader.readAsText(file);
+            }
 
-                    const rootTree = document.getElementById('rootTree');
-                    
-                    rootTree.innerHTML = ''; 
-                    const rootNode = deserializeNode(treeData, true);
-                    rootTree.appendChild(rootNode);
-                    
-                    event.target.value = '';
-                } catch (error) {
-                    alert('讀檔失敗！請確認上傳的是本系統匯出的 .json 格式檔案。');
-                    console.error("JSON解析錯誤:", error);
+            /* =========================================================
+               🖨️ 智慧列印縮放演算法 (維持比例不跑版)
+               ========================================================= */
+            window.addEventListener('beforeprint', () => {
+                const printWrapper = document.getElementById('printWrapper');
+                const treeContent = document.getElementById('rootTree'); 
+                
+                printWrapper.style.transform = 'none';
+                printWrapper.style.zoom = '1';
+                
+                const MAX_PRINT_WIDTH = 1050; 
+                const MAX_PRINT_HEIGHT = 680;
+                const currentTreeWidth = treeContent.scrollWidth;
+                const currentTreeHeight = treeContent.scrollHeight;
+
+                const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
+                const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100);
+                
+                let scaleRatio = Math.min(widthRatio, heightRatio);
+
+                // 視覺上限限制在 1.25，確保即使只有一個節點也不會過度巨大
+                if (scaleRatio > 1.25) scaleRatio = 1.25;
+
+                printWrapper.style.zoom = scaleRatio;
+                
+                // 針對極舊版 Firefox 的寬度補償方案
+                const isOldFF = navigator.userAgent.toLowerCase().includes('firefox') && !CSS.supports('zoom', '1');
+                if (isOldFF) {
+                    printWrapper.style.transform = `scale(${scaleRatio})`;
+                    printWrapper.style.transformOrigin = 'top center';
+                    printWrapper.style.width = `${(1 / scaleRatio) * 100}%`;
                 }
-            };
-            reader.readAsText(file);
-        }
+            });
 
-        /* =========================================================
-           自動縮放演算法 (Before Print / After Print Hook)
-           ========================================================= */
-        window.addEventListener('beforeprint', () => {
-            // 🌟 關鍵修正1：將縮放套用於外層容器，讓「標題與樹狀圖」同步放大縮小
-            const printWrapper = document.getElementById('printWrapper');
-            const treeContent = document.getElementById('rootTree'); 
-            
-            printWrapper.style.transform = 'none';
-            printWrapper.style.zoom = '1';
-            
-            const MAX_PRINT_WIDTH = 1050; 
-            const MAX_PRINT_HEIGHT = 680;
-            
-            const currentTreeWidth = treeContent.scrollWidth;
-            const currentTreeHeight = treeContent.scrollHeight;
+            window.addEventListener('afterprint', () => {
+                const printWrapper = document.getElementById('printWrapper');
+                printWrapper.style.transform = '';
+                printWrapper.style.transformOrigin = '';
+                printWrapper.style.zoom = '';
+                printWrapper.style.width = '';
+            });
 
-            // 🌟 關鍵修正2：設立最小寬度基準 (800px)。
-            // 這樣單一小節點就不會被當成 200px 去計算，避免被放大到 5 倍的失控情況。
-            const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
-            const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100); // 預留100px高度給標題
-            
-            let scaleRatio = Math.min(widthRatio, heightRatio);
-
-            // 🌟 關鍵修正3：將放大上限嚴格下修至 1.25 倍
-            // 這是視覺上最舒服的「適度放大」，不會變成巨無霸
-            if (scaleRatio > 1.25) {
-                scaleRatio = 1.25;
-            }
-
-            printWrapper.style.zoom = scaleRatio;
-            
-            // Firefox 備用方案
-            if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-                printWrapper.style.transform = `scale(${scaleRatio})`;
-                printWrapper.style.transformOrigin = 'top center';
-            }
-        });
-
-        window.addEventListener('afterprint', () => {
-            const printWrapper = document.getElementById('printWrapper');
-            printWrapper.style.transform = '';
-            printWrapper.style.transformOrigin = '';
-            printWrapper.style.zoom = '';
-        });
+        })(); // 閉包結束
     </script>
 </body>
 </html>
