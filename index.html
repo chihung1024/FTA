@@ -315,7 +315,6 @@
                 </div>
             </div>
             <div class="toolbar">
-                <!-- 移除 inline onclick，改用 EventListener 綁定 -->
                 <button class="btn-action btn-danger" id="btn-clear">🗑️ 清空</button>
                 <button class="btn-action btn-save" id="btn-export">💾 匯出存檔(.json)</button>
                 <input type="file" id="importFile" accept=".json" style="display: none;">
@@ -386,8 +385,15 @@
                 overlay.classList.add('active');
             }
 
+            // 支援 Esc 關閉 Modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.getElementById('modalOverlay').classList.remove('active');
+                }
+            });
+
             /* =========================================================
-               🔒 核心邏輯：動態建立 DOM 節點 (徹底防範 XSS 注入)
+               🔒 核心邏輯：動態建立 DOM 節點 (防護 XSS 注入)
                ========================================================= */
             function createNodeDOM(data = {}, isRoot = false) {
                 const li = document.createElement('li');
@@ -406,8 +412,10 @@
                 // 控制按鈕群
                 const controls = document.createElement('div');
                 controls.className = 'node-controls';
+                
+                // 🛡️ 採納建議：鎖定根節點顏色，移除根節點的調色盤，避免語意混亂
                 controls.innerHTML = `
-                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                    ${!isRoot ? '<button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>' : ''}
                     <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
                     ${!isRoot ? '<button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>' : ''}
                 `;
@@ -481,7 +489,7 @@
                     ul.appendChild(createNodeDOM({}, false));
                 }
                 
-                // ❌ 刪除節點
+                // ❌ 刪除節點 (包含採納建議：遞迴向上清理空分支)
                 if (target.closest('.btn-del')) {
                     const li = target.closest('li');
                     if (li.id === 'rootNode') return; // 不應發生，按鈕已隱藏
@@ -491,14 +499,18 @@
                         message: '確定要刪除此節點及其下方的所有分支嗎？此操作無法復原。',
                         type: 'confirm',
                         onConfirm: () => {
-                            const parentUl = li.parentElement;
-                            const parentLi = parentUl.parentElement;
+                            let currUl = li.parentElement;
                             li.remove(); 
-                            // 若無其他子節點，清理空 ul 與邏輯閘
-                            if (parentUl.children.length === 0) {
-                                parentUl.remove();
+                            
+                            // 遞迴向上清理：如果刪除後該層變成空的，就把該層的 ul 跟邏輯閘一起刪掉
+                            while (currUl && currUl.id !== 'rootTree' && currUl.children.length === 0) {
+                                const parentLi = currUl.parentElement;
+                                currUl.remove();
+                                
                                 const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
                                 if (gate) gate.remove();
+                                
+                                currUl = parentLi.parentElement; // 繼續檢查上一層
                             }
                         }
                     });
@@ -530,7 +542,7 @@
                 }
             });
 
-            // 防止標題輸入時按 Enter 產生換行
+            // 💡 刻意設計：標題輸入時按 Enter 產生失焦(防換行)，描述框則允許 Enter 換行打長文
             document.addEventListener('keydown', function(e) {
                 if (e.target.classList.contains('title') || e.target.id === 'projectTitle') {
                     if (e.key === 'Enter') {
@@ -627,22 +639,29 @@
                 return { title, desc, colorClass, gateType, children };
             }
 
+            // 🛡️ 採納建議：改用 Blob 取代 data URI 避免匯出大型樹狀圖時的網址過長限制
             function exportTree() {
                 const treeData = serializeNode(document.getElementById('rootNode'));
                 const projectTitle = document.getElementById('projectTitle').textContent.trim() || 'FTA_Project';
                 
                 const exportData = { projectTitle, treeData };
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-                const a = document.createElement('a');
                 
+                // 使用 Blob 產生下載連結
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
                 const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
                 const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
                 
-                a.href = dataStr;
+                a.href = url;
                 a.download = `FTA_${safeTitle}_${dateStr}.json`;
                 document.body.appendChild(a); 
                 a.click();
                 a.remove();
+                
+                // 下載後釋放記憶體
+                setTimeout(() => URL.revokeObjectURL(url), 100);
             }
 
             function importTree(event) {
@@ -683,7 +702,9 @@
                ========================================================= */
             window.addEventListener('beforeprint', () => {
                 const printWrapper = document.getElementById('printWrapper');
-                const treeContent = document.getElementById('rootTree'); 
+                
+                // 🛡️ 採納建議：改測量 mainTree，將 padding 列入計算才不會被切邊
+                const treeContent = document.getElementById('mainTree'); 
                 
                 printWrapper.style.transform = 'none';
                 printWrapper.style.zoom = '1';
@@ -697,15 +718,15 @@
                 const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100);
                 
                 let scaleRatio = Math.min(widthRatio, heightRatio);
-
-                // 視覺上限限制在 1.25，確保即使只有一個節點也不會過度巨大
                 if (scaleRatio > 1.25) scaleRatio = 1.25;
 
-                printWrapper.style.zoom = scaleRatio;
+                // 🛡️ 採納建議：使用 CSS.supports 功能偵測代替不穩定的 User-Agent 判斷
+                const supportsZoom = CSS.supports('zoom', '1');
                 
-                // 針對極舊版 Firefox 的寬度補償方案
-                const isOldFF = navigator.userAgent.toLowerCase().includes('firefox') && !CSS.supports('zoom', '1');
-                if (isOldFF) {
+                if (supportsZoom) {
+                    printWrapper.style.zoom = scaleRatio;
+                } else {
+                    // Fallback for older Firefox versions lacking zoom support
                     printWrapper.style.transform = `scale(${scaleRatio})`;
                     printWrapper.style.transformOrigin = 'top center';
                     printWrapper.style.width = `${(1 / scaleRatio) * 100}%`;
