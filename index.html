@@ -365,7 +365,6 @@
                 justify-content: center !important; 
             }
             
-            /* 🌟 關鍵修正：確保標題區塊在列印時絕對水平置中 */
             .header > div:first-child {
                 width: 100% !important;
                 display: flex !important;
@@ -386,11 +385,11 @@
 
             .tree-container {
                 overflow: hidden !important; 
-                /* 移除原本的 height: auto 以容許 flex 生效 */
-                padding: 0 !important; /* 移除 padding，為垂直置中爭取完美空間 */
+                height: auto !important;
+                padding: 10px 0 0 0 !important; /* 恢復從頂端對齊，取消垂直置中 */
                 display: flex !important;
                 justify-content: center !important;
-                align-items: center !important; /* 🌟 關鍵：將內容垂直置中，平衡上下空白 */
+                align-items: flex-start !important; /* 🌟 回復原本的向上對齊 */
             }
             .tree {
                 padding: 0 !important;
@@ -444,7 +443,6 @@
                                 <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
                                 <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
                             </div>
-                            <!-- 原先的文字改為浮水印 data-placeholder，並且預設內容留空 -->
                             <div class="title" contenteditable="true" data-placeholder="頂事件 (Top Event)"></div>
                             <div class="desc" contenteditable="true" data-placeholder="請輸入事故或失效結果描述..."></div>
                         </div>
@@ -755,42 +753,45 @@
            自動縮放演算法 (Before Print / After Print Hook)
            ========================================================= */
         window.addEventListener('beforeprint', () => {
-            const tree = document.getElementById('mainTree');
-            tree.style.transform = 'none';
-            tree.style.zoom = '1';
+            const treeContainer = document.getElementById('mainTree');
+            // 🌟 關鍵修正：抓取最內層包含實際節點的 <ul>，取得「真正的樹狀圖寬度」
+            const treeContent = document.getElementById('rootTree'); 
             
-            // 安全估算 A4 橫向紙張可用區域
+            treeContainer.style.transform = 'none';
+            treeContainer.style.zoom = '1';
+            
             const MAX_PRINT_WIDTH = 1050; 
-            const MAX_PRINT_HEIGHT = 680; 
-            const currentTreeWidth = tree.scrollWidth;
-            const currentTreeHeight = tree.scrollHeight;
+            const MAX_PRINT_HEIGHT = 650; // 稍微縮小預留給上方標題空間
+            
+            // 使用 treeContent 來測量，避免受到外層 div 預設 100% 滿版的干擾
+            const currentTreeWidth = treeContent.scrollWidth;
+            const currentTreeHeight = treeContent.scrollHeight;
 
             const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
             const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
             
-            // 取最小比例，確保長寬都能塞入同一頁
+            // 取得最嚴格的縮放比例
             let scaleRatio = Math.min(widthRatio, heightRatio);
 
-            // 🌟 修正放大機制：如果樹狀圖很小，允許稍微放大以填補空白。
-            // 上限調整為 1.6 倍，搭配 CSS 中的 align-items: center，畫面視覺會非常協調
-            if (scaleRatio > 1.6) {
-                scaleRatio = 1.6;
+            // 🌟 如果節點很少導致寬度極小，允許自動適度放大（上限 1.8 倍，保持字體清晰）
+            if (scaleRatio > 1.8) {
+                scaleRatio = 1.8;
             }
 
-            tree.style.zoom = scaleRatio;
+            treeContainer.style.zoom = scaleRatio;
             
-            // 針對舊版 Firefox 的備案
+            // Firefox 備用方案
             if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-                tree.style.transform = `scale(${scaleRatio})`;
-                tree.style.transformOrigin = 'top center';
+                treeContainer.style.transform = `scale(${scaleRatio})`;
+                treeContainer.style.transformOrigin = 'top center';
             }
         });
 
         window.addEventListener('afterprint', () => {
-            const tree = document.getElementById('mainTree');
-            tree.style.transform = '';
-            tree.style.transformOrigin = '';
-            tree.style.zoom = '';
+            const treeContainer = document.getElementById('mainTree');
+            treeContainer.style.transform = '';
+            treeContainer.style.transformOrigin = '';
+            treeContainer.style.zoom = '';
         });
     </script>
 </body>
