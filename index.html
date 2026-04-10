@@ -282,6 +282,14 @@
 
             /* 移除陰影讓列印更清晰 */
             .node, .gate { box-shadow: none !important; border-width: 2px !important; }
+
+            /* 🌟關鍵修正：消除 PDF 引擎對圓角路徑(Curve)與直線(Rect)的抗鋸齒計算差異 */
+            /* 在列印時強制取消圓角，轉為直角連線，保證所有線段粗細100%均勻一致 */
+            .tree li::before, 
+            .tree li::after, 
+            .tree ul ul::before {
+                border-radius: 0 !important;
+            }
         }
     </style>
 </head>
