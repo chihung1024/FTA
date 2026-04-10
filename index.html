@@ -110,7 +110,7 @@
             display: flex;
             justify-content: center;
             padding-right: 60px;    
-            transition: transform 0.2s ease; /* 讓列印縮放時有些微過渡效果 */
+            transition: transform 0.2s ease; 
         }
 
         /* 樹狀圖 CSS 核心邏輯 */
@@ -198,10 +198,10 @@
             color: #94a3b8;
             pointer-events: none;
             cursor: text;
-            font-weight: normal; /* 讓浮水印看起來比較淡不搶眼 */
+            font-weight: normal; 
         }
         
-        /* 文字排版：確保即使沒有文字，區塊也能保有高度以供點擊 */
+        /* 文字排版 */
         .title { 
             font-weight: bold; 
             font-size: 16px; 
@@ -209,14 +209,14 @@
             color: #1e293b; 
             line-height: 1.3; 
             cursor: text; 
-            min-height: 22px; /* 空白時的高度支撐 */
+            min-height: 22px; 
         }
         .desc { 
             font-size: 13px; 
             color: #64748b; 
             line-height: 1.5; 
             cursor: text; 
-            min-height: 20px; /* 空白時的高度支撐 */
+            min-height: 20px; 
         }
 
         /* 節點色彩分類 */
@@ -386,10 +386,10 @@
             .tree-container {
                 overflow: hidden !important; 
                 height: auto !important;
-                padding: 10px 0 0 0 !important; /* 恢復從頂端對齊，取消垂直置中 */
+                padding: 10px 0 0 0 !important; /* 確保從頂端開始對齊，不垂直置中 */
                 display: flex !important;
                 justify-content: center !important;
-                align-items: flex-start !important; /* 🌟 回復原本的向上對齊 */
+                align-items: flex-start !important; /* 🌟 維持向上對齊 */
             }
             .tree {
                 padding: 0 !important;
@@ -407,48 +407,51 @@
 </head>
 <body>
 
-    <!-- 標題與工具列 -->
-    <div class="header">
-        <div>
-            <div class="header-title-wrapper">
-                <span style="font-size: 20px;">🛠️</span>
-                <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+    <!-- 🌟 新增全局縮放容器 printWrapper，確保列印時「標題與樹狀圖」同步放大 -->
+    <div id="printWrapper" style="display: flex; flex-direction: column; height: 100%; width: 100%;">
+        <!-- 標題與工具列 -->
+        <div class="header">
+            <div>
+                <div class="header-title-wrapper">
+                    <span style="font-size: 20px;">🛠️</span>
+                    <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+                </div>
+                <div class="legend">
+                    <span>🎨 節點顏色代表：</span>
+                    <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
+                    <span style="color:#3b82f6; font-weight:bold;">藍色(主分支)</span> |
+                    <span style="color:#f97316; font-weight:bold;">橘色(關鍵路徑)</span> |
+                    <span style="color:#64748b; font-weight:bold;">白色(基本事件)</span>
+                </div>
             </div>
-            <div class="legend">
-                <span>🎨 節點顏色代表：</span>
-                <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
-                <span style="color:#3b82f6; font-weight:bold;">藍色(主分支)</span> |
-                <span style="color:#f97316; font-weight:bold;">橘色(關鍵路徑)</span> |
-                <span style="color:#64748b; font-weight:bold;">白色(基本事件)</span>
+            <div class="toolbar">
+                <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
+                <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
+                <!-- 隱藏的檔案上傳元素 -->
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
+                <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
+                <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
             </div>
         </div>
-        <div class="toolbar">
-            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
-            <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
-            <!-- 隱藏的檔案上傳元素 -->
-            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
-            <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
-            <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
-        </div>
-    </div>
 
-    <!-- 樹狀圖區域 -->
-    <div class="tree-container" id="treeContainer">
-        <div class="tree" id="mainTree">
-            <ul id="rootTree">
-                <li id="rootNode">
-                    <div class="gate-wrapper">
-                        <div class="node top">
-                            <div class="node-controls">
-                                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+        <!-- 樹狀圖區域 -->
+        <div class="tree-container" id="treeContainer">
+            <div class="tree" id="mainTree">
+                <ul id="rootTree">
+                    <li id="rootNode">
+                        <div class="gate-wrapper">
+                            <div class="node top">
+                                <div class="node-controls">
+                                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                                </div>
+                                <div class="title" contenteditable="true" data-placeholder="頂事件 (Top Event)"></div>
+                                <div class="desc" contenteditable="true" data-placeholder="請輸入事故或失效結果描述..."></div>
                             </div>
-                            <div class="title" contenteditable="true" data-placeholder="頂事件 (Top Event)"></div>
-                            <div class="desc" contenteditable="true" data-placeholder="請輸入事故或失效結果描述..."></div>
                         </div>
-                    </div>
-                </li>
-            </ul>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -753,45 +756,46 @@
            自動縮放演算法 (Before Print / After Print Hook)
            ========================================================= */
         window.addEventListener('beforeprint', () => {
-            const treeContainer = document.getElementById('mainTree');
-            // 🌟 關鍵修正：抓取最內層包含實際節點的 <ul>，取得「真正的樹狀圖寬度」
+            // 🌟 關鍵修正1：將縮放套用於外層容器，讓「標題與樹狀圖」同步放大縮小
+            const printWrapper = document.getElementById('printWrapper');
             const treeContent = document.getElementById('rootTree'); 
             
-            treeContainer.style.transform = 'none';
-            treeContainer.style.zoom = '1';
+            printWrapper.style.transform = 'none';
+            printWrapper.style.zoom = '1';
             
             const MAX_PRINT_WIDTH = 1050; 
-            const MAX_PRINT_HEIGHT = 650; // 稍微縮小預留給上方標題空間
+            const MAX_PRINT_HEIGHT = 680;
             
-            // 使用 treeContent 來測量，避免受到外層 div 預設 100% 滿版的干擾
             const currentTreeWidth = treeContent.scrollWidth;
             const currentTreeHeight = treeContent.scrollHeight;
 
-            const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
-            const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
+            // 🌟 關鍵修正2：設立最小寬度基準 (800px)。
+            // 這樣單一小節點就不會被當成 200px 去計算，避免被放大到 5 倍的失控情況。
+            const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
+            const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100); // 預留100px高度給標題
             
-            // 取得最嚴格的縮放比例
             let scaleRatio = Math.min(widthRatio, heightRatio);
 
-            // 🌟 如果節點很少導致寬度極小，允許自動適度放大（上限 1.8 倍，保持字體清晰）
-            if (scaleRatio > 1.8) {
-                scaleRatio = 1.8;
+            // 🌟 關鍵修正3：將放大上限嚴格下修至 1.25 倍
+            // 這是視覺上最舒服的「適度放大」，不會變成巨無霸
+            if (scaleRatio > 1.25) {
+                scaleRatio = 1.25;
             }
 
-            treeContainer.style.zoom = scaleRatio;
+            printWrapper.style.zoom = scaleRatio;
             
             // Firefox 備用方案
             if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-                treeContainer.style.transform = `scale(${scaleRatio})`;
-                treeContainer.style.transformOrigin = 'top center';
+                printWrapper.style.transform = `scale(${scaleRatio})`;
+                printWrapper.style.transformOrigin = 'top center';
             }
         });
 
         window.addEventListener('afterprint', () => {
-            const treeContainer = document.getElementById('mainTree');
-            treeContainer.style.transform = '';
-            treeContainer.style.transformOrigin = '';
-            treeContainer.style.zoom = '';
+            const printWrapper = document.getElementById('printWrapper');
+            printWrapper.style.transform = '';
+            printWrapper.style.transformOrigin = '';
+            printWrapper.style.zoom = '';
         });
     </script>
 </body>
