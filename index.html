@@ -359,8 +359,8 @@
             
             .header {
                 box-shadow: none !important;
-                padding: 0 0 10px 0 !important;
-                border-bottom: 2px solid #e2e8f0;
+                padding: 0 0 15px 0 !important;
+                border-bottom: 2px solid #e2e8f0 !important;
                 display: flex !important;
                 justify-content: center !important; 
             }
@@ -386,11 +386,11 @@
 
             .tree-container {
                 overflow: hidden !important; 
-                height: auto !important;
-                padding: 10px 0 0 0 !important;
+                /* 移除原本的 height: auto 以容許 flex 生效 */
+                padding: 0 !important; /* 移除 padding，為垂直置中爭取完美空間 */
                 display: flex !important;
                 justify-content: center !important;
-                align-items: flex-start !important;
+                align-items: center !important; /* 🌟 關鍵：將內容垂直置中，平衡上下空白 */
             }
             .tree {
                 padding: 0 !important;
@@ -759,22 +759,22 @@
             tree.style.transform = 'none';
             tree.style.zoom = '1';
             
-            const MAX_PRINT_WIDTH = 1080; 
-            const MAX_PRINT_HEIGHT = 700;
+            // 安全估算 A4 橫向紙張可用區域
+            const MAX_PRINT_WIDTH = 1050; 
+            const MAX_PRINT_HEIGHT = 680; 
             const currentTreeWidth = tree.scrollWidth;
             const currentTreeHeight = tree.scrollHeight;
 
             const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
             const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
             
-            // 🌟 修正：確保縮放比例兼顧各種情況
-            // 原本的 Math.min(..., 1) 會讓小樹狀圖維持過小比例並留下大量空白
+            // 取最小比例，確保長寬都能塞入同一頁
             let scaleRatio = Math.min(widthRatio, heightRatio);
 
-            // 適度放大機制：如果樹狀圖很小，允許稍微放大以填補空白，
-            // 但最高不超過 1.35 倍，避免節點文字變得巨大不協調。
-            if (scaleRatio > 1.35) {
-                scaleRatio = 1.35;
+            // 🌟 修正放大機制：如果樹狀圖很小，允許稍微放大以填補空白。
+            // 上限調整為 1.6 倍，搭配 CSS 中的 align-items: center，畫面視覺會非常協調
+            if (scaleRatio > 1.6) {
+                scaleRatio = 1.6;
             }
 
             tree.style.zoom = scaleRatio;
