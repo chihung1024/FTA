@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>互動式 FTA 故障樹編輯器</title>
     <style>
         /* 基礎設定 */
@@ -44,6 +44,7 @@
             padding: 4px 8px;
             border-radius: 4px;
             transition: background 0.2s;
+            white-space: nowrap;
         }
         
         .editable-title:hover {
@@ -55,7 +56,13 @@
             background-color: #f8fafc;
         }
         
-        .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
+        .toolbar { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-wrap: wrap;
+        }
+        
         .btn-action {
             padding: 8px 14px;
             background-color: #3b82f6;
@@ -77,7 +84,14 @@
         .btn-load:hover { background-color: #d97706; }
 
         /* 圖例說明 */
-        .legend { display: flex; gap: 15px; font-size: 13px; align-items: center; margin-top: 5px; color: #64748b;}
+        .legend { 
+            display: flex; 
+            gap: 15px; 
+            font-size: 13px; 
+            align-items: center; 
+            margin-top: 5px; 
+            color: #64748b;
+        }
 
         /* 樹狀圖容器 (支援拖曳與滾動) */
         .tree-container {
@@ -85,6 +99,7 @@
             overflow: auto;
             padding: 60px;
             cursor: grab;
+            -webkit-overflow-scrolling: touch; /* iOS 順暢滑動 */
         }
         .tree-container:active { cursor: grabbing; }
 
@@ -95,7 +110,7 @@
             display: flex;
             justify-content: center;
             padding-right: 60px;    
-            transition: transform 0.2s ease; /* 讓列印縮放時有些微過渡效果 */
+            transition: transform 0.2s ease; 
         }
 
         /* 樹狀圖 CSS 核心邏輯 */
@@ -113,22 +128,18 @@
             transition: all 0.3s;
         }
 
-        /* 繪製連接線 (優化版：解決末端粗細不一致與對齊問題) */
-        /* 預設：中間節點的水平線貫穿全部 */
+        /* 繪製連接線 */
         .tree li::before {
             content: ''; position: absolute; top: 0; left: 0;
             width: 100%; height: 0;
             border-top: 2px solid #94a3b8;
         }
-        /* 預設：中間節點的垂直線從正中央向下 */
         .tree li::after {
             content: ''; position: absolute; top: 0; left: 50%;
             border-left: 2px solid #94a3b8;
             width: 0; height: 40px;
             margin-left: -1px;
         }
-        
-        /* 首個子節點：僅繪製右半段水平線與左側圓角垂直線 */
         .tree li:first-child::before {
             left: calc(50% - 1px);
             width: calc(50% + 1px);
@@ -137,8 +148,6 @@
             border-radius: 8px 0 0 0;
         }
         .tree li:first-child::after { display: none; }
-        
-        /* 末個子節點：僅繪製左半段水平線與右側圓角垂直線 */
         .tree li:last-child::before {
             left: 0;
             width: calc(50% + 1px);
@@ -147,12 +156,8 @@
             border-radius: 0 8px 0 0;
         }
         .tree li:last-child::after { display: none; }
-        
-        /* 唯一子節點：不需繪製自己的連線 (由父層 ul 連接) */
         .tree li:only-child::before, .tree li:only-child::after { display: none; }
         .tree li:only-child { padding-top: 0; }
-        
-        /* 來自父層的垂直連接線 */
         .tree ul ul::before {
             content: ''; position: absolute; top: 0; left: 50%;
             border-left: 2px solid #94a3b8;
@@ -185,6 +190,35 @@
             cursor: text;
         }
 
+        /* =========================================
+           🌟 浮水印功能 (Placeholder)
+           ========================================= */
+        [contenteditable="true"][data-placeholder]:empty::before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+            cursor: text;
+            font-weight: normal; 
+        }
+        
+        /* 文字排版 */
+        .title { 
+            font-weight: bold; 
+            font-size: 16px; 
+            margin-bottom: 8px; 
+            color: #1e293b; 
+            line-height: 1.3; 
+            cursor: text; 
+            min-height: 22px; 
+        }
+        .desc { 
+            font-size: 13px; 
+            color: #64748b; 
+            line-height: 1.5; 
+            cursor: text; 
+            min-height: 20px; 
+        }
+
         /* 節點色彩分類 */
         .node.top { border-color: #ef4444; background-color: #fef2f2; border-width: 3px; }
         .node.top .title { color: #b91c1c; }
@@ -196,10 +230,6 @@
         .node.critical .title { color: #c2410c; }
         
         .node.normal { border-color: #cbd5e1; background-color: #ffffff; }
-
-        /* 文字排版 */
-        .title { font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #1e293b; line-height: 1.3; cursor: text;}
-        .desc { font-size: 13px; color: #64748b; line-height: 1.5; cursor: text; min-height: 20px;}
 
         /* 浮動控制按鈕 */
         .node-controls {
@@ -261,122 +291,174 @@
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
 
         /* =========================================
+           📱 手機版響應式設計 (Mobile Responsive)
+           ========================================= */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 12px 15px;
+                gap: 12px;
+            }
+            .header-title-wrapper { width: 100%; }
+            .editable-title {
+                font-size: 18px;
+                padding: 2px 4px;
+                white-space: normal; 
+            }
+            .toolbar {
+                width: 100%;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 5px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .btn-action {
+                white-space: nowrap;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            .legend, .instruction-toast { display: none !important; }
+            .tree-container { padding: 30px 15px; }
+            .tree { padding-right: 20px; }
+            .node {
+                min-width: 140px;
+                max-width: 160px;
+                padding: 12px;
+            }
+            .title { font-size: 15px; }
+            .desc { font-size: 12px; }
+            .node-controls {
+                display: flex;
+                transform: scale(0.85);
+                top: -12px;
+                right: -12px;
+                opacity: 0.95;
+            }
+            .gate {
+                width: 40px; height: 40px;
+                font-size: 11px;
+                bottom: -2px;
+            }
+        }
+
+        /* =========================================
            列印專用樣式 (@media print)
            ========================================= */
         @media print {
-            /* 預設紙張為橫向 (Landscape)，適合寬大樹狀圖 */
             @page { size: landscape; margin: 10mm; }
-
             body, html {
                 width: 100% !important;
                 height: 100% !important;
-                overflow: hidden !important; /* 🌟關鍵：強制鎖定單頁，防止跑版與多餘空白頁 */
+                overflow: hidden !important; 
                 background-color: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
-
-            /* 隱藏不需印出的 UI */
             .toolbar, .instruction-toast, .node-controls, .legend { display: none !important; }
-
+            
             .header {
                 box-shadow: none !important;
-                padding: 0 0 10px 0 !important;
-                border-bottom: 2px solid #e2e8f0;
-                justify-content: center !important; /* 標題置中，爭取更多下方空間 */
+                padding: 0 0 15px 0 !important;
+                border-bottom: 2px solid #e2e8f0 !important;
+                display: flex !important;
+                justify-content: center !important; 
+            }
+            
+            .header > div:first-child {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+            .header-title-wrapper {
+                width: auto !important;
+                justify-content: center !important;
             }
 
-            /* 列印時移除標題可編輯的樣式 */
             .editable-title {
                 padding: 0 !important;
                 border: none !important;
                 background-color: transparent !important;
+                text-align: center !important;
             }
 
             .tree-container {
-                overflow: hidden !important; /* 配合 body 強制單頁 */
+                overflow: hidden !important; 
                 height: auto !important;
-                padding: 10px 0 0 0 !important;
+                padding: 10px 0 0 0 !important; /* 確保從頂端開始對齊，不垂直置中 */
                 display: flex !important;
                 justify-content: center !important;
-                align-items: flex-start !important;
+                align-items: flex-start !important; /* 🌟 維持向上對齊 */
             }
-
             .tree {
                 padding: 0 !important;
                 margin: 0 auto !important;
                 min-width: 0 !important; 
             }
-
             .node, .gate-wrapper, li, ul {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
-
-            /* 移除陰影讓列印更清晰 */
             .node, .gate { box-shadow: none !important; border-width: 2px !important; }
-
-            /* 🌟關鍵修正：消除 PDF 引擎對圓角路徑(Curve)與直線(Rect)的抗鋸齒計算差異 */
-            /* 在列印時強制取消圓角，轉為直角連線，保證所有線段粗細100%均勻一致 */
-            .tree li::before, 
-            .tree li::after, 
-            .tree ul ul::before {
-                border-radius: 0 !important;
-            }
+            .tree li::before, .tree li::after, .tree ul ul::before { border-radius: 0 !important; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 標題與工具列 -->
-    <div class="header">
-        <div>
-            <div class="header-title-wrapper">
-                <span style="font-size: 20px;">🛠️</span>
-                <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+    <!-- 🌟 新增全局縮放容器 printWrapper，確保列印時「標題與樹狀圖」同步放大 -->
+    <div id="printWrapper" style="display: flex; flex-direction: column; height: 100%; width: 100%;">
+        <!-- 標題與工具列 -->
+        <div class="header">
+            <div>
+                <div class="header-title-wrapper">
+                    <span style="font-size: 20px;">🛠️</span>
+                    <div class="editable-title" contenteditable="true" id="projectTitle">互動式 FTA 故障樹編輯器</div>
+                </div>
+                <div class="legend">
+                    <span>🎨 節點顏色代表：</span>
+                    <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
+                    <span style="color:#3b82f6; font-weight:bold;">藍色(主分支)</span> |
+                    <span style="color:#f97316; font-weight:bold;">橘色(關鍵路徑)</span> |
+                    <span style="color:#64748b; font-weight:bold;">白色(基本事件)</span>
+                </div>
             </div>
-            <div class="legend">
-                <span>🎨 節點顏色代表：</span>
-                <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
-                <span style="color:#3b82f6; font-weight:bold;">藍色(主分支)</span> |
-                <span style="color:#f97316; font-weight:bold;">橘色(關鍵路徑)</span> |
-                <span style="color:#64748b; font-weight:bold;">白色(基本事件)</span>
+            <div class="toolbar">
+                <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
+                <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
+                <!-- 隱藏的檔案上傳元素 -->
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
+                <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
+                <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
             </div>
         </div>
-        <div class="toolbar">
-            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空</button>
-            <button class="btn-action btn-save" onclick="exportTree()">💾 匯出存檔(.json)</button>
-            <!-- 隱藏的檔案上傳元素 -->
-            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importTree(event)">
-            <button class="btn-action btn-load" onclick="document.getElementById('importFile').click()">📂 匯入讀檔</button>
-            <button class="btn-action" onclick="window.print()">🖨️ 轉存PDF</button>
-        </div>
-    </div>
 
-    <!-- 樹狀圖區域 -->
-    <div class="tree-container" id="treeContainer">
-        <div class="tree" id="mainTree">
-            <ul id="rootTree">
-                <li id="rootNode">
-                    <div class="gate-wrapper">
-                        <div class="node top">
-                            <div class="node-controls">
-                                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
-                                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+        <!-- 樹狀圖區域 -->
+        <div class="tree-container" id="treeContainer">
+            <div class="tree" id="mainTree">
+                <ul id="rootTree">
+                    <li id="rootNode">
+                        <div class="gate-wrapper">
+                            <div class="node top">
+                                <div class="node-controls">
+                                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                                </div>
+                                <div class="title" contenteditable="true" data-placeholder="頂事件 (Top Event)"></div>
+                                <div class="desc" contenteditable="true" data-placeholder="請輸入事故或失效結果描述..."></div>
                             </div>
-                            <div class="title" contenteditable="true">頂事件 (Top Event)</div>
-                            <div class="desc" contenteditable="true">請輸入事故或失效結果描述...</div>
                         </div>
-                    </div>
-                </li>
-            </ul>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <!-- 操作提示 -->
     <div class="instruction-toast">
         💡 <b>操作指南：</b><br>
-        1. <span>點擊文字</span>：直接編輯標題與描述。<br>
+        1. <span>點擊框框</span>：直接輸入文字，不必刪除預設提示字。<br>
         2. <span>滑鼠移至節點</span>：出現「➕ 新增」、「❌ 刪除」、「🎨 換色」。<br>
         3. <span>點擊 AND/OR 圓圈</span>：一鍵切換邏輯閘類型。<br>
         4. <span>資料備份</span>：可匯出存成 JSON 檔，之後再匯入接續編輯。
@@ -391,8 +473,8 @@
                         <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
                         <button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>
                     </div>
-                    <div class="title" contenteditable="true">新增事件</div>
-                    <div class="desc" contenteditable="true">點擊輸入描述...</div>
+                    <div class="title" contenteditable="true" data-placeholder="新增事件"></div>
+                    <div class="desc" contenteditable="true" data-placeholder="點擊輸入描述..."></div>
                 </div>
             </div>
         `;
@@ -464,6 +546,15 @@
             }
         });
 
+        // 修正瀏覽器清空 contenteditable 時會塞入 <br> 導致浮水印出不來的問題
+        document.getElementById('treeContainer').addEventListener('input', function(e) {
+            if (e.target.hasAttribute('contenteditable')) {
+                if (e.target.innerHTML === '<br>' || e.target.innerHTML === '&nbsp;') {
+                    e.target.innerHTML = '';
+                }
+            }
+        });
+
         function resetCanvas() {
             if(confirm('警告：這將會清除您目前編輯的所有內容，恢復成單一空白節點。確定執行？')) {
                 const rootTree = document.getElementById('rootTree');
@@ -475,8 +566,8 @@
                                     <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
                                     <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
                                 </div>
-                                <div class="title" contenteditable="true">新的頂事件</div>
-                                <div class="desc" contenteditable="true">點擊這裡開始編輯...</div>
+                                <div class="title" contenteditable="true" data-placeholder="新的頂事件"></div>
+                                <div class="desc" contenteditable="true" data-placeholder="點擊這裡開始編輯..."></div>
                             </div>
                         </div>
                     </li>
@@ -521,7 +612,6 @@
            樹狀資料 匯出 (Serialize) 與 匯入 (Deserialize)
            ========================================================= */
         
-        // 遞迴將 DOM 節點轉為 JSON 物件
         function serializeNode(liElement) {
             const nodeDiv = liElement.querySelector(':scope > .gate-wrapper > .node');
             if (!nodeDiv) return null;
@@ -553,25 +643,20 @@
             return { title, desc, colorClass, gateType, children };
         }
 
-        // 觸發匯出 JSON 檔案下載
         function exportTree() {
             const rootLi = document.getElementById('rootNode');
             const treeData = serializeNode(rootLi);
             
-            // 獲取自訂標題
             const projectTitle = document.getElementById('projectTitle').innerText;
             const exportData = {
                 projectTitle: projectTitle,
                 treeData: treeData
             };
             
-            // 產生 JSON 字串並建立虛擬下載連結
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
             const downloadAnchorNode = document.createElement('a');
             
-            // 預設檔名加上專案標題與當前時間戳記
             const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
-            // 將不合法的檔名字符替換掉
             const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
             downloadAnchorNode.setAttribute("href", dataStr);
             downloadAnchorNode.setAttribute("download", `FTA_${safeTitle}_${dateStr}.json`);
@@ -580,7 +665,6 @@
             downloadAnchorNode.remove();
         }
 
-        // 遞迴將 JSON 物件還原為 DOM 節點
         function deserializeNode(data, isRoot = false) {
             const li = document.createElement('li');
             if (isRoot) li.id = 'rootNode';
@@ -605,13 +689,19 @@
             const titleDiv = document.createElement('div');
             titleDiv.className = 'title';
             titleDiv.contentEditable = "true";
-            titleDiv.innerText = data.title;
+            titleDiv.setAttribute('data-placeholder', isRoot ? '頂事件 (Top Event)' : '新增事件');
+            if(data.title && data.title.trim() !== "") {
+                titleDiv.innerText = data.title;
+            }
             nodeDiv.appendChild(titleDiv);
 
             const descDiv = document.createElement('div');
             descDiv.className = 'desc';
             descDiv.contentEditable = "true";
-            descDiv.innerText = data.desc;
+            descDiv.setAttribute('data-placeholder', isRoot ? '請輸入事故或失效結果描述...' : '點擊輸入描述...');
+            if(data.desc && data.desc.trim() !== "") {
+                descDiv.innerText = data.desc;
+            }
             nodeDiv.appendChild(descDiv);
 
             if (data.gateType && data.children && data.children.length > 0) {
@@ -632,7 +722,6 @@
             return li;
         }
 
-        // 處理匯入的檔案讀取與重建
         function importTree(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -643,7 +732,6 @@
                     const parsedData = JSON.parse(e.target.result);
                     let treeData = parsedData;
                     
-                    // 相容舊版匯出格式 (只有 treeData) 與新版格式 (包含 title)
                     if (parsedData.projectTitle && parsedData.treeData) {
                         document.getElementById('projectTitle').innerText = parsedData.projectTitle;
                         treeData = parsedData.treeData;
@@ -651,12 +739,10 @@
 
                     const rootTree = document.getElementById('rootTree');
                     
-                    // 清空畫布，還原備份資料
                     rootTree.innerHTML = ''; 
                     const rootNode = deserializeNode(treeData, true);
                     rootTree.appendChild(rootNode);
                     
-                    // 清空 input 讓同一個檔案能重複上傳
                     event.target.value = '';
                 } catch (error) {
                     alert('讀檔失敗！請確認上傳的是本系統匯出的 .json 格式檔案。');
@@ -670,33 +756,46 @@
            自動縮放演算法 (Before Print / After Print Hook)
            ========================================================= */
         window.addEventListener('beforeprint', () => {
-            const tree = document.getElementById('mainTree');
-            tree.style.transform = 'none';
-            tree.style.zoom = '1';
+            // 🌟 關鍵修正1：將縮放套用於外層容器，讓「標題與樹狀圖」同步放大縮小
+            const printWrapper = document.getElementById('printWrapper');
+            const treeContent = document.getElementById('rootTree'); 
             
-            const MAX_PRINT_WIDTH = 1080; 
-            const MAX_PRINT_HEIGHT = 700;
-            const currentTreeWidth = tree.scrollWidth;
-            const currentTreeHeight = tree.scrollHeight;
+            printWrapper.style.transform = 'none';
+            printWrapper.style.zoom = '1';
+            
+            const MAX_PRINT_WIDTH = 1050; 
+            const MAX_PRINT_HEIGHT = 680;
+            
+            const currentTreeWidth = treeContent.scrollWidth;
+            const currentTreeHeight = treeContent.scrollHeight;
 
-            const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
-            const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
-            const scaleRatio = Math.min(widthRatio, heightRatio, 1);
+            // 🌟 關鍵修正2：設立最小寬度基準 (800px)。
+            // 這樣單一小節點就不會被當成 200px 去計算，避免被放大到 5 倍的失控情況。
+            const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
+            const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100); // 預留100px高度給標題
+            
+            let scaleRatio = Math.min(widthRatio, heightRatio);
 
-            if (scaleRatio < 1) {
-                tree.style.zoom = scaleRatio;
-                if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-                    tree.style.transform = `scale(${scaleRatio})`;
-                    tree.style.transformOrigin = 'top center';
-                }
+            // 🌟 關鍵修正3：將放大上限嚴格下修至 1.25 倍
+            // 這是視覺上最舒服的「適度放大」，不會變成巨無霸
+            if (scaleRatio > 1.25) {
+                scaleRatio = 1.25;
+            }
+
+            printWrapper.style.zoom = scaleRatio;
+            
+            // Firefox 備用方案
+            if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+                printWrapper.style.transform = `scale(${scaleRatio})`;
+                printWrapper.style.transformOrigin = 'top center';
             }
         });
 
         window.addEventListener('afterprint', () => {
-            const tree = document.getElementById('mainTree');
-            tree.style.transform = '';
-            tree.style.transformOrigin = '';
-            tree.style.zoom = '';
+            const printWrapper = document.getElementById('printWrapper');
+            printWrapper.style.transform = '';
+            printWrapper.style.transformOrigin = '';
+            printWrapper.style.zoom = '';
         });
     </script>
 </body>
