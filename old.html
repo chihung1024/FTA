@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式 FTA 故障樹編輯器</title>
+    <style>
+        /* 基礎設定 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f8fafc; 
+            color: #334155;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 頂部標題與工具列 */
+        .header {
+            background-color: #fff;
+            padding: 15px 30px;
+            box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.1);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+        
+        .toolbar { display: flex; gap: 10px; align-items: center; }
+        .btn-action {
+            padding: 8px 16px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn-action:hover { background-color: #2563eb; }
+        .btn-danger { background-color: #ef4444; }
+        .btn-danger:hover { background-color: #dc2626; }
+
+        /* 圖例說明 */
+        .legend { display: flex; gap: 15px; font-size: 13px; align-items: center; margin-top: 5px; color: #64748b;}
+
+        /* 樹狀圖容器 (支援拖曳與滾動) */
+        .tree-container {
+            flex: 1;
+            overflow: auto;
+            padding: 60px;
+            cursor: grab;
+            /* 移除原本的 display: flex; 與 center 對齊，避免子元素超出邊界時左側截斷 */
+        }
+        .tree-container:active { cursor: grabbing; }
+
+        /* 樹狀圖本體設定 (解決超出版面截斷問題的核心) */
+        .tree {
+            min-width: max-content; /* 確保畫布寬度會跟隨節點數量無限延伸 */
+            margin: 0 auto;         /* 當內容小於視窗時維持置中；超出視窗時則向右延展 */
+            display: flex;
+            justify-content: center;
+            padding-right: 60px;    /* 確保右側滾動到底時仍有留白 */
+        }
+
+        /* 樹狀圖 CSS 核心邏輯 */
+        .tree ul {
+            padding-top: 40px; 
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+        .tree li {
+            float: left; text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 40px 15px 0 15px;
+            transition: all 0.3s;
+        }
+
+        /* 繪製連接線 */
+        .tree li::before, .tree li::after {
+            content: ''; position: absolute; top: 0; right: 50%;
+            border-top: 2px solid #94a3b8;
+            width: 50%; height: 40px;
+        }
+        .tree li::after {
+            right: auto; left: 50%;
+            border-left: 2px solid #94a3b8;
+        }
+        .tree li:only-child::after, .tree li:only-child::before { display: none; }
+        .tree li:only-child { padding-top: 0; }
+        .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+        .tree li:last-child::before { border-right: 2px solid #94a3b8; border-radius: 0 8px 0 0; }
+        .tree li:first-child::after { border-radius: 8px 0 0 0; }
+        .tree ul ul::before {
+            content: ''; position: absolute; top: 0; left: 50%;
+            border-left: 2px solid #94a3b8;
+            width: 0; height: 40px;
+            margin-left: -1px;
+        }
+
+        /* 節點樣式 */
+        .gate-wrapper { position: relative; display: inline-block; padding-bottom: 25px; }
+        .node {
+            background: #fff;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 180px;
+            max-width: 220px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 5;
+        }
+        .node:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+
+        /* 編輯狀態外框 */
+        [contenteditable="true"]:focus {
+            outline: 2px dashed #3b82f6;
+            outline-offset: 4px;
+            background: #f8fafc;
+            border-radius: 4px;
+            cursor: text;
+        }
+
+        /* 節點色彩分類 */
+        .node.top { border-color: #ef4444; background-color: #fef2f2; border-width: 3px; }
+        .node.top .title { color: #b91c1c; }
+        
+        .node.branch { border-color: #3b82f6; background-color: #eff6ff; }
+        .node.branch .title { color: #1d4ed8; }
+        
+        .node.critical { border-color: #f97316; background-color: #fff7ed; border-width: 3px; }
+        .node.critical .title { color: #c2410c; }
+        
+        .node.normal { border-color: #cbd5e1; background-color: #ffffff; }
+
+        /* 文字排版 */
+        .title { font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #1e293b; line-height: 1.3; cursor: text;}
+        .desc { font-size: 13px; color: #64748b; line-height: 1.5; cursor: text; min-height: 20px;}
+
+        /* 浮動控制按鈕 (Hover 顯示) */
+        .node-controls {
+            display: none; /* 預設隱藏 */
+            position: absolute;
+            top: -16px;
+            right: -16px;
+            gap: 4px;
+            z-index: 20;
+        }
+        .node:hover .node-controls { display: flex; } /* 懸停顯示 */
+        
+        .ctrl-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .ctrl-btn:hover { transform: scale(1.1); }
+        .btn-add { background-color: #10b981; } /* 綠色新增 */
+        .btn-del { background-color: #ef4444; } /* 紅色刪除 */
+        .btn-color { background-color: #8b5cf6; font-size: 14px;} /* 紫色換色 */
+
+        /* 邏輯閘 (AND / OR) */
+        .gate {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 46px; height: 46px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 800; 
+            z-index: 10;
+            box-shadow: 0 2px 5px rgb(0 0 0 / 0.15);
+            cursor: pointer;
+            transition: transform 0.2s;
+            user-select: none;
+        }
+        .gate:hover { transform: translateX(-50%) scale(1.1); }
+        .gate.and { background-color: #fef08a; border: 2px solid #eab308; color: #a16207; }
+        .gate.or { background-color: #e2e8f0; border: 2px solid #94a3b8; color: #475569; }
+
+        /* 提示小視窗 */
+        .instruction-toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(15, 23, 42, 0.85); color: white;
+            padding: 12px 20px; border-radius: 8px;
+            font-size: 13px; line-height: 1.6;
+            pointer-events: none; z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .instruction-toast span { color: #fbbf24; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 標題與工具列 -->
+    <div class="header">
+        <div>
+            <h1>🛠️ 互動式 FTA 故障樹編輯器</h1>
+            <div class="legend">
+                <span>🎨 節點顏色代表：</span>
+                <span style="color:#ef4444; font-weight:bold;">紅色(頂事件)</span> |
+                <span style="color:#3b82f6; font-weight:bold;">藍色(主分支)</span> |
+                <span style="color:#f97316; font-weight:bold;">橘色(關鍵路徑)</span> |
+                <span style="color:#64748b; font-weight:bold;">白色(基本事件)</span>
+            </div>
+        </div>
+        <div class="toolbar">
+            <button class="btn-action btn-danger" id="clearBtn" onclick="resetCanvas()">🗑️ 清空為單一節點</button>
+            <button class="btn-action" onclick="window.print()">🖨️ 列印 / 存成PDF</button>
+        </div>
+    </div>
+
+    <!-- 樹狀圖區域 -->
+    <div class="tree-container" id="treeContainer">
+        <div class="tree">
+            <ul id="rootTree">
+                <!-- 初始的頂端節點 -->
+                <li id="rootNode">
+                    <div class="gate-wrapper">
+                        <div class="node top">
+                            <!-- 浮動控制列 -->
+                            <div class="node-controls">
+                                <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                                <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                                <!-- 頂節點不可刪除，故隱藏刪除按鈕 -->
+                            </div>
+                            <div class="title" contenteditable="true">頂事件 (Top Event)</div>
+                            <div class="desc" contenteditable="true">請輸入事故或失效結果描述...</div>
+                        </div>
+                        <!-- 邏輯閘會由 JS 動態生成 -->
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 操作提示 -->
+    <div class="instruction-toast">
+        💡 <b>操作指南：</b><br>
+        1. <span>點擊文字</span>：直接編輯標題與描述。<br>
+        2. <span>滑鼠移至節點</span>：右上角會出現「➕ 新增」、「❌ 刪除」、「🎨 換色」按鈕。<br>
+        3. <span>點擊 AND/OR 圓圈</span>：可一鍵切換邏輯閘類型。<br>
+        4. <span>按住空白處拖曳</span>：可自由移動畫布視野。
+    </div>
+
+    <script>
+        /* =========================================
+           新節點的 HTML 模板 
+           ========================================= */
+        const nodeTemplate = `
+            <div class="gate-wrapper">
+                <div class="node normal">
+                    <div class="node-controls">
+                        <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                        <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                        <button class="ctrl-btn btn-del" title="刪除此節點與下方分支">❌</button>
+                    </div>
+                    <div class="title" contenteditable="true">新增事件</div>
+                    <div class="desc" contenteditable="true">點擊輸入描述...</div>
+                </div>
+            </div>
+        `;
+
+        /* =========================================
+           事件代理 (Event Delegation) 處理所有按鈕點擊
+           ========================================= */
+        document.getElementById('treeContainer').addEventListener('click', function(e) {
+            const target = e.target;
+
+            // 1. 新增子節點 (➕)
+            if (target.closest('.btn-add')) {
+                const li = target.closest('li');
+                let ul = li.querySelector(':scope > ul');
+                let wrapper = li.querySelector(':scope > .gate-wrapper');
+                
+                // 如果目前沒有子層級，需先建立 <ul> 以及邏輯閘
+                if (!ul) {
+                    // 新增邏輯閘 (預設為 OR)
+                    const gate = document.createElement('div');
+                    gate.className = 'gate or toggle-gate';
+                    gate.textContent = 'OR';
+                    wrapper.appendChild(gate);
+                    
+                    // 新增 <ul> 容器
+                    ul = document.createElement('ul');
+                    li.appendChild(ul);
+                }
+                
+                // 建立新的 <li> 並塞入模板
+                const newLi = document.createElement('li');
+                newLi.innerHTML = nodeTemplate;
+                ul.appendChild(newLi);
+            }
+            
+            // 2. 刪除節點 (❌)
+            if (target.closest('.btn-del')) {
+                const li = target.closest('li');
+                if (li.id === 'rootNode') {
+                    alert('頂層節點為樹狀圖根基，不可刪除！請使用右上角「清空」功能。');
+                    return;
+                }
+                
+                if(confirm('確定要刪除此節點及其下方的所有分支嗎？')) {
+                    const parentUl = li.parentElement;
+                    const parentLi = parentUl.parentElement;
+                    li.remove(); // 移除該節點
+                    
+                    // 檢查父節點是否還有其他子節點，若無，則移除 <ul> 與 邏輯閘
+                    if (parentUl.children.length === 0) {
+                        parentUl.remove();
+                        const gate = parentLi.querySelector(':scope > .gate-wrapper > .gate');
+                        if (gate) gate.remove();
+                    }
+                }
+            }
+            
+            // 3. 切換邏輯閘 (AND <-> OR)
+            if (target.classList.contains('toggle-gate')) {
+                if (target.classList.contains('or')) {
+                    target.classList.replace('or', 'and');
+                    target.textContent = 'AND';
+                } else {
+                    target.classList.replace('and', 'or');
+                    target.textContent = 'OR';
+                }
+            }
+            
+            // 4. 切換節點顏色/類型 (🎨)
+            if (target.closest('.btn-color')) {
+                const node = target.closest('.node');
+                // 顏色循環：normal(白) -> top(紅) -> branch(藍) -> critical(橘) -> normal(白)
+                if (node.classList.contains('normal')) {
+                    node.classList.replace('normal', 'top');
+                } else if (node.classList.contains('top')) {
+                    node.classList.replace('top', 'branch');
+                } else if (node.classList.contains('branch')) {
+                    node.classList.replace('branch', 'critical');
+                } else {
+                    node.classList.replace('critical', 'normal');
+                }
+            }
+        });
+
+        /* =========================================
+           清空畫布功能
+           ========================================= */
+        function resetCanvas() {
+            if(confirm('警告：這將會清除您目前編輯的所有內容，恢復成單一空白節點。確定執行？')) {
+                const rootTree = document.getElementById('rootTree');
+                rootTree.innerHTML = `
+                    <li id="rootNode">
+                        <div class="gate-wrapper">
+                            <div class="node top">
+                                <div class="node-controls">
+                                    <button class="ctrl-btn btn-color" title="切換節點顏色">🎨</button>
+                                    <button class="ctrl-btn btn-add" title="向下新增子節點">➕</button>
+                                </div>
+                                <div class="title" contenteditable="true">新的頂事件</div>
+                                <div class="desc" contenteditable="true">點擊這裡開始編輯...</div>
+                            </div>
+                        </div>
+                    </li>
+                `;
+            }
+        }
+
+        /* =========================================
+           滑鼠拖曳畫布功能 (防衝突處理)
+           ========================================= */
+        const slider = document.getElementById('treeContainer');
+        let isDown = false;
+        let startX, startY, scrollLeft, scrollTop;
+
+        slider.addEventListener('mousedown', (e) => {
+            // **關鍵**：如果點擊的是可編輯文字、按鈕或邏輯閘，則「不要」觸發畫布拖曳
+            if (e.target.closest('[contenteditable]') || 
+                e.target.closest('.ctrl-btn') || 
+                e.target.closest('.gate')) {
+                return;
+            }
+            
+            isDown = true;
+            slider.style.cursor = 'grabbing';
+            startX = e.pageX - slider.offsetLeft;
+            startY = e.pageY - slider.offsetTop;
+            scrollLeft = slider.scrollLeft;
+            scrollTop = slider.scrollTop;
+        });
+        
+        slider.addEventListener('mouseleave', () => { isDown = false; slider.style.cursor = 'grab'; });
+        slider.addEventListener('mouseup', () => { isDown = false; slider.style.cursor = 'grab'; });
+        
+        slider.addEventListener('mousemove', (e) => {
+            if(!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - slider.offsetLeft;
+            const y = e.pageY - slider.offsetTop;
+            const walkX = (x - startX) * 1.5; // 調整拖曳靈敏度
+            const walkY = (y - startY) * 1.5;
+            slider.scrollLeft = scrollLeft - walkX;
+            slider.scrollTop = scrollTop - walkY;
+        });
+    </script>
+</body>
+</html>
