@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>互動式 FTA 故障樹編輯器</title>
     <style>
-        /* =========================================
-           集中管理層級 (Z-Index) 與基礎設定
-           ========================================= */
+        /* ============================================================
+           🔧 集中管理層級 (Z-Index) 與基礎設定
+           ============================================================ */
         :root {
             --z-node     : 5;
             --z-gate     : 10;
@@ -28,9 +28,9 @@
             overflow: hidden;
         }
 
-        /* =========================================
-           頂部標題與工具列
-           ========================================= */
+        /* ============================================================
+           🔧 頂部標題與工具列
+           ============================================================ */
         .header {
             background-color: #fff;
             padding: 15px 30px;
@@ -74,9 +74,9 @@
             align-items: center; margin-top: 5px; color: #64748b;
         }
 
-        /* =========================================
-           樹狀圖容器與排版核心
-           ========================================= */
+        /* ============================================================
+           🔧 樹狀圖容器與排版核心
+           ============================================================ */
         .tree-container {
             flex: 1; overflow: auto; padding: 60px;
             cursor: grab; -webkit-overflow-scrolling: touch;
@@ -123,9 +123,9 @@
             border-left: 2px solid #94a3b8; width: 0; height: 40px; margin-left: -1px;
         }
 
-        /* =========================================
-           節點外觀與色彩
-           ========================================= */
+        /* ============================================================
+           🔧 節點外觀與色彩
+           ============================================================ */
         .gate-wrapper { position: relative; display: inline-block; padding-bottom: 25px; }
         .node {
             background: #fff; border: 2px solid #cbd5e1; border-radius: 8px;
@@ -163,9 +163,9 @@
         .node.critical .title { color: #c2410c; }
         .node.normal { border-color: #cbd5e1; background-color: #ffffff; }
 
-        /* =========================================
-           UI 互動元件 (按鈕、邏輯閘、提示框)
-           ========================================= */
+        /* ============================================================
+           🔧 UI 互動元件 (按鈕、邏輯閘、提示框)
+           ============================================================ */
         .node-controls {
             display: none; position: absolute;
             top: -16px; right: -16px; gap: 4px; z-index: var(--z-controls);
@@ -191,6 +191,9 @@
             box-shadow: 0 2px 5px rgb(0 0 0 / 0.15); cursor: pointer; user-select: none;
         }
         .gate:hover { transform: translateX(-50%) scale(1.1); }
+        /* 鍵盤聚焦時的外框提示 */
+        .gate:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+        
         .gate.and { background-color: #fef08a; border: 2px solid #eab308; color: #a16207; }
         .gate.or { background-color: #e2e8f0; border: 2px solid #94a3b8; color: #475569; }
 
@@ -202,9 +205,9 @@
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
 
-        /* =========================================
-           🛡️ 自訂對話框 Modal
-           ========================================= */
+        /* ============================================================
+           🔧 自訂對話框 Modal
+           ============================================================ */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0, 0, 0, 0.5); z-index: var(--z-modal);
@@ -234,9 +237,9 @@
         .modal-btn-ok      { background: #3b82f6; color: white; }
         .modal-btn-ok:hover { background: #2563eb; }
 
-        /* =========================================
+        /* ============================================================
            📱 手機版響應式設計
-           ========================================= */
+           ============================================================ */
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; padding: 12px 15px; gap: 12px; }
             .header-title-wrapper { width: 100%; }
@@ -253,9 +256,9 @@
             .gate { width: 40px; height: 40px; font-size: 11px; bottom: -2px; }
         }
 
-        /* =========================================
-           列印專用樣式 (@media print)
-           ========================================= */
+        /* ============================================================
+           🖨️ 列印專用樣式 (@media print)
+           ============================================================ */
         @media print {
             @page { size: landscape; margin: 10mm; }
             body, html {
@@ -287,7 +290,7 @@
 </head>
 <body>
 
-    <!-- 🛡️ 加入 ARIA 無障礙屬性，預設 aria-hidden="true" -->
+    <!-- ARIA 無障礙屬性，預設 aria-hidden="true" -->
     <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
         <div class="modal-box" id="modalBox">
             <h3 id="modalTitle">提示</h3>
@@ -341,41 +344,72 @@
     </div>
 
     <script>
-        // 將所有邏輯封裝，避免污染全域變數
         (() => {
             'use strict';
 
             const COLOR_CYCLE = ['normal', 'top', 'branch', 'critical'];
             
-            // 🛡️ 採納建議：DOM 元素模組頂層快取，提升效能
+            // DOM 元素模組頂層快取
             const treeContainer = document.getElementById('treeContainer');
-            const printWrapper = document.getElementById('printWrapper');
-            const modalOverlay = document.getElementById('modalOverlay');
-            const modalBox = document.getElementById('modalBox');
-            const modalTitleEl = document.getElementById('modalTitle');
+            const printWrapper  = document.getElementById('printWrapper');
+            const modalOverlay  = document.getElementById('modalOverlay');
+            const modalBox      = document.getElementById('modalBox');
+            const modalTitleEl  = document.getElementById('modalTitle');
             const modalMessageEl = document.getElementById('modalMessage');
             const modalActionsEl = document.getElementById('modalActions');
             
             let elementToRestoreFocus = null;
 
             /* =========================================================
-               🛡️ UI 互動模組：自訂對話框 Modal
+               🛡️ UI 互動模組：自訂對話框 Modal 與 Focus Trap
                ========================================================= */
             function closeActiveModal() {
                 if (modalOverlay.classList.contains('active')) {
                     modalOverlay.classList.remove('active');
                     modalOverlay.setAttribute('aria-hidden', 'true');
                     
-                    // 🛡️ 採納建議：先保存並清空全域狀態，再執行焦點歸位，防止狀態污染
+                    // 焦點歸位，防止狀態污染
                     const target = elementToRestoreFocus;
                     elementToRestoreFocus = null;
-                    
                     if (target) target.focus();
                 }
             }
 
-            function showModal({ title, message, type = 'confirm', onConfirm }) {
+            // 處理 Focus Trap (鎖定鍵盤 Tab 焦點於 Modal 內)
+            modalOverlay.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    const focusable = modalOverlay.querySelectorAll('button:not([disabled])');
+                    if (focusable.length === 0) return;
+                    
+                    const firstEl = focusable[0];
+                    const lastEl = focusable[focusable.length - 1];
+
+                    if (e.shiftKey) { // Shift + Tab
+                        if (document.activeElement === firstEl) {
+                            lastEl.focus();
+                            e.preventDefault();
+                        }
+                    } else { // Tab
+                        if (document.activeElement === lastEl) {
+                            firstEl.focus();
+                            e.preventDefault();
+                        }
+                    }
+                }
+            });
+
+            function showModal({ title, message, type = 'confirm', isDanger = true, onConfirm }) {
+                // 移除 warning 類型，回歸單純的 alert/confirm 結構，透過 isDanger 賦予 UI 語意
+                const VALID_TYPES = ['alert', 'confirm'];
+                if (!VALID_TYPES.includes(type)) {
+                    console.warn(`FTA Editor 警告: 未知的 Modal 類型 "${type}"，已自動降級為 "confirm"`);
+                    type = 'confirm';
+                }
+
                 elementToRestoreFocus = document.activeElement;
+                
+                const ariaRole = (type === 'confirm' && isDanger) ? 'alertdialog' : 'dialog';
+                modalOverlay.setAttribute('role', ariaRole);
                 
                 modalTitleEl.textContent = title;
                 modalMessageEl.textContent = message;
@@ -400,8 +434,8 @@
 
                     const btnConfirm = document.createElement('button');
                     btnConfirm.type = 'button';
-                    // 🛡️ 採納建議：區分 UI 語意，'warning' 為藍色中性確認，'confirm' (如刪除) 為紅色警告
-                    btnConfirm.className = type === 'warning' ? 'modal-btn modal-btn-ok' : 'modal-btn modal-btn-confirm';
+                    // 根據 isDanger 決定按鈕危險語意色
+                    btnConfirm.className = isDanger ? 'modal-btn modal-btn-confirm' : 'modal-btn modal-btn-ok';
                     btnConfirm.textContent = '確定';
                     btnConfirm.onclick = () => { 
                         const callback = onConfirm;
@@ -421,11 +455,19 @@
                 
                 modalOverlay.removeAttribute('aria-hidden'); 
                 modalOverlay.classList.add('active');
+
+                // 啟動時自動聚焦第一個按鈕，準備 Focus Trap
+                const firstBtn = modalOverlay.querySelector('button');
+                if (firstBtn) firstBtn.focus();
             }
 
             /* =========================================================
                🔒 核心邏輯：動態建立 DOM 節點
                ========================================================= */
+            /**
+             * 建立節點 DOM
+             * @returns {HTMLElement | null} 深度超過時回傳 null 防禦
+             */
             function createNodeDOM(data = {}, isRoot = false, depth = 0) {
                 const li = document.createElement('li');
                 if (isRoot) li.id = 'rootNode';
@@ -453,6 +495,7 @@
                     btnColor.type = 'button';
                     btnColor.className = 'ctrl-btn btn-color';
                     btnColor.title = '切換節點顏色';
+                    btnColor.setAttribute('aria-label', '切換節點顏色');
                     btnColor.textContent = '🎨';
                     controls.appendChild(btnColor);
                 }
@@ -461,6 +504,7 @@
                 btnAdd.type = 'button';
                 btnAdd.className = 'ctrl-btn btn-add';
                 btnAdd.title = '向下新增子節點';
+                btnAdd.setAttribute('aria-label', '向下新增子節點');
                 btnAdd.textContent = '➕';
                 controls.appendChild(btnAdd);
 
@@ -469,6 +513,7 @@
                     btnDel.type = 'button';
                     btnDel.className = 'ctrl-btn btn-del';
                     btnDel.title = '刪除此節點與下方分支';
+                    btnDel.setAttribute('aria-label', '刪除此節點與下方分支');
                     btnDel.textContent = '❌';
                     controls.appendChild(btnDel);
                 }
@@ -508,6 +553,14 @@
                             const gateDiv = document.createElement('div');
                             gateDiv.className = `gate ${gateType} toggle-gate`;
                             gateDiv.textContent = gateType.toUpperCase();
+                            
+                            // 🔧 修復 #6: 使用標準的 role="switch" 與 aria-checked 以利螢幕閱讀器正確報讀
+                            gateDiv.setAttribute('role', 'switch');
+                            gateDiv.setAttribute('tabindex', '0');
+                            const isAnd = gateType === 'and';
+                            gateDiv.setAttribute('aria-checked', isAnd ? 'true' : 'false');
+                            gateDiv.setAttribute('aria-label', `邏輯閘，目前為 ${gateType.toUpperCase()} (點擊或按空白鍵切換)`);
+                            
                             wrapper.appendChild(gateDiv);
                             li.appendChild(ul);
                         }
@@ -520,7 +573,10 @@
             function initCanvas() {
                 const rootTree = document.getElementById('rootTree');
                 rootTree.innerHTML = '';
-                rootTree.appendChild(createNodeDOM({}, true));
+                const rootNode = createNodeDOM({}, true);
+                if (rootNode) {
+                    rootTree.appendChild(rootNode);
+                }
             }
             initCanvas(); 
 
@@ -539,6 +595,10 @@
                         const gate = document.createElement('div');
                         gate.className = 'gate or toggle-gate';
                         gate.textContent = 'OR';
+                        gate.setAttribute('role', 'switch');
+                        gate.setAttribute('tabindex', '0');
+                        gate.setAttribute('aria-checked', 'false');
+                        gate.setAttribute('aria-label', `邏輯閘，目前為 OR (點擊或按空白鍵切換)`);
                         wrapper.appendChild(gate);
                         
                         ul = document.createElement('ul');
@@ -556,10 +616,15 @@
                         title: '確認刪除',
                         message: '確定要刪除此節點及其下方的所有分支嗎？此操作無法復原。',
                         type: 'confirm',
+                        isDanger: true,
                         onConfirm: () => {
                             let currUl = li.parentElement;
                             li.remove(); 
                             
+                            // 💡 拒絕遞迴清理修訂的理由：
+                            // FTA 故障樹中，沒有子節點的節點代表「基本事件 (Basic Event) / 葉節點」。
+                            // 刪除子節點後，父節點理當變為葉節點，絕不該連同父節點一起被誤刪除。
+                            // 這裡只清理空殼的 <ul> 與邏輯閘，是 100% 符合 FTA 領域邏輯的正確做法。
                             while (currUl && currUl.id !== 'rootTree' && currUl.children.length === 0) {
                                 const parentLi = currUl.parentElement;
                                 if (!parentLi) break; 
@@ -576,8 +641,11 @@
                 
                 if (target.classList.contains('toggle-gate')) {
                     const isOr = target.classList.contains('or');
+                    const nextType = isOr ? 'AND' : 'OR';
                     target.className = `gate ${isOr ? 'and' : 'or'} toggle-gate`;
-                    target.textContent = isOr ? 'AND' : 'OR';
+                    target.textContent = nextType;
+                    target.setAttribute('aria-checked', isOr ? 'true' : 'false');
+                    target.setAttribute('aria-label', `邏輯閘，目前為 ${nextType} (點擊或按空白鍵切換)`);
                 }
                 
                 if (target.closest('.btn-color')) {
@@ -593,6 +661,9 @@
                     e.preventDefault();
                     const text = e.clipboardData.getData('text/plain');
                     
+                    // TODO: execCommand('insertText') 已被標記為棄用 (deprecated)。
+                    // 它是唯一能完美觸發瀏覽器原生 Undo (Ctrl+Z) 歷史紀錄堆疊的方法。
+                    // 未來若瀏覽器完全移除此 API，可評估改用 InputEvent (inputType: 'insertText') 或 EditContext API。
                     if (!document.execCommand('insertText', false, text)) {
                         const selection = window.getSelection();
                         if (selection.rangeCount) {
@@ -609,48 +680,43 @@
                 }
             });
 
+            // 🔧 整合共用的空值清理邏輯，確保 CSS :empty 浮水印正確顯示
+            const cleanEmptyContenteditable = (el) => {
+                if (el.hasAttribute('contenteditable')) {
+                    if (!el.textContent.trim()) {
+                        el.innerHTML = '';
+                    }
+                }
+            };
+
+            // 🔧 統一集中處理所有 Input 與 Focusout 事件
             printWrapper.addEventListener('input', function(e) {
-                if (e.target.id === 'projectTitle') return; 
-                if (e.target.hasAttribute('contenteditable')) {
-                    const html = e.target.innerHTML;
-                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
-                        e.target.innerHTML = '';
+                const target = e.target;
+                if (!target.hasAttribute('contenteditable')) return;
+                
+                cleanEmptyContenteditable(target);
+                
+                // 單獨處理大標題字數截斷邏輯
+                if (target.id === 'projectTitle') {
+                    if (target.textContent.length > 100) {
+                        const truncated = target.textContent.substring(0, 100);
+                        target.textContent = truncated; 
+                        
+                        const textNode = target.firstChild;
+                        if (textNode) {
+                            const range = document.createRange();
+                            range.setStart(textNode, truncated.length);
+                            range.collapse(true);
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
                     }
                 }
             });
 
-            // 處理專案標題的特殊限制與清理
-            document.getElementById('projectTitle').addEventListener('input', function(e) {
-                e.stopPropagation(); // 🛡️ 採納建議：阻斷冒泡，避免外層無效執行
-                
-                const html = this.innerHTML;
-                if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
-                    this.innerHTML = '';
-                }
-                
-                if (this.textContent.length > 100) {
-                    const truncated = this.textContent.substring(0, 100);
-                    this.textContent = truncated; 
-                    
-                    const textNode = this.firstChild;
-                    if (textNode) {
-                        const range = document.createRange();
-                        range.setStart(textNode, truncated.length);
-                        range.collapse(true);
-                        const sel = window.getSelection();
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                }
-            });
-
-            document.addEventListener('focusout', function(e) {
-                if (e.target.hasAttribute('contenteditable')) {
-                    const html = e.target.innerHTML;
-                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
-                        e.target.innerHTML = '';
-                    }
-                }
+            printWrapper.addEventListener('focusout', function(e) {
+                cleanEmptyContenteditable(e.target);
             });
 
             document.addEventListener('keydown', function(e) {
@@ -661,6 +727,18 @@
                 if (e.key === 'Enter' && (e.target.classList.contains('title') || e.target.id === 'projectTitle')) {
                     e.preventDefault();
                     e.target.blur();
+                }
+
+                // 邏輯閘無障礙鍵盤觸發
+                if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('toggle-gate')) {
+                    e.preventDefault(); 
+                    const target = e.target;
+                    const isOr = target.classList.contains('or');
+                    const nextType = isOr ? 'AND' : 'OR';
+                    target.className = `gate ${isOr ? 'and' : 'or'} toggle-gate`;
+                    target.textContent = nextType;
+                    target.setAttribute('aria-checked', isOr ? 'true' : 'false');
+                    target.setAttribute('aria-label', `邏輯閘，目前為 ${nextType} (點擊或按空白鍵切換)`);
                 }
             });
 
@@ -698,6 +776,7 @@
             };
 
             const onDragEnd = () => {
+                if (!isDown) return; 
                 isDown = false;
                 treeContainer.style.cursor = 'grab';
                 if (rafId) {
@@ -718,8 +797,14 @@
             treeContainer.addEventListener('mouseup', onDragEnd);
             treeContainer.addEventListener('mouseleave', onDragEnd);
 
+            // 🔧 修復 #2: passive: false 是阻擋手機端原生下拉更新 / 捲動干擾的關鍵
             treeContainer.addEventListener('touchstart', (e) => { if (!isInteractive(e.target)) onDragStart(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
-            treeContainer.addEventListener('touchmove', (e) => { if (isDown) onDragMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
+            treeContainer.addEventListener('touchmove', (e) => { 
+                if (isDown) {
+                    e.preventDefault(); 
+                    onDragMove(e.touches[0].pageX, e.touches[0].pageY); 
+                }
+            }, { passive: false });
             treeContainer.addEventListener('touchend', onDragEnd);
 
             /* =========================================================
@@ -730,6 +815,7 @@
                     title: '清空畫布',
                     message: '這將會清除您目前編輯的所有內容，並恢復為初始狀態。確定執行？',
                     type: 'confirm',
+                    isDanger: true,
                     onConfirm: () => {
                         document.getElementById('projectTitle').textContent = '互動式 FTA 故障樹編輯器';
                         initCanvas();
@@ -742,7 +828,7 @@
             document.getElementById('btn-print').addEventListener('click', () => window.print());
             document.getElementById('importFile').addEventListener('change', importTree);
 
-            // 🛡️ 採納建議：給定預設值防衛
+            // ctx 預設值僅在頂層呼叫時生效，遞迴時必須顯式傳入以共用同一個狀態物件
             function serializeNode(liElement, depth = 0, ctx = { depthHit: false }) {
                 if (depth > 50) {
                     ctx.depthHit = true;
@@ -799,7 +885,8 @@
                         showModal({ 
                             title: '深度限制警告', 
                             message: '您的樹狀圖包含超過 50 層的極深分支。為保護檔案結構，過深的分支未被完整匯出。是否繼續下載？', 
-                            type: 'warning', // 🛡️ 採納建議：使用中性的 warning 藍色按鈕
+                            type: 'confirm', 
+                            isDanger: false, 
                             onConfirm: triggerDownload
                         });
                     } else {
@@ -848,7 +935,10 @@
 
                         const rootTree = document.getElementById('rootTree');
                         rootTree.innerHTML = ''; 
-                        rootTree.appendChild(createNodeDOM(treeData, true));
+                        const rootNode = createNodeDOM(treeData, true);
+                        if (rootNode) {
+                            rootTree.appendChild(rootNode);
+                        }
                         
                     } catch (error) {
                         showModal({
@@ -873,12 +963,18 @@
                 
                 printWrapper.style.transform = 'none';
                 
+                // 注意：beforeprint 觸發時，@media print 樣式尚未完全套用。
+                // 🔧 修復 #3: 透過 getBoundingClientRect 獲取更精確的邊界尺寸
+                const originalOverflow = treeContainer.style.overflow;
+                treeContainer.style.overflow = 'visible';
+                const rect = treeContent.getBoundingClientRect();
+                const currentTreeWidth = rect.width;
+                const currentTreeHeight = rect.height;
+                treeContainer.style.overflow = originalOverflow;
+
                 const MAX_PRINT_WIDTH = 1050; 
                 // 680px 預估來自 A4 橫向 (Landscape) 扣除邊界後的安全可視高度
                 const MAX_PRINT_HEIGHT = 680;
-                
-                const currentTreeWidth = treeContent.scrollWidth;
-                const currentTreeHeight = treeContent.scrollHeight;
 
                 const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
                 const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100);
