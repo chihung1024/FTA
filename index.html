@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -5,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>互動式 FTA 故障樹編輯器</title>
     <style>
-        /* ============================================================
-           🔧 集中管理層級 (Z-Index) 與基礎設定
-           ============================================================ */
+        /* =========================================
+           集中管理層級 (Z-Index) 與基礎設定
+           ========================================= */
         :root {
             --z-node     : 5;
             --z-gate     : 10;
@@ -28,9 +29,9 @@
             overflow: hidden;
         }
 
-        /* ============================================================
-           🔧 頂部標題與工具列
-           ============================================================ */
+        /* =========================================
+           頂部標題與工具列
+           ========================================= */
         .header {
             background-color: #fff;
             padding: 15px 30px;
@@ -74,14 +75,12 @@
             align-items: center; margin-top: 5px; color: #64748b;
         }
 
-        /* ============================================================
-           🔧 樹狀圖容器與排版核心
-           ============================================================ */
-        /* 🛡️ 加入 tabindex="-1" 以接受 Modal 刪除後的程式化焦點 fallback */
+        /* =========================================
+           樹狀圖容器與排版核心
+           ========================================= */
         .tree-container {
             flex: 1; overflow: auto; padding: 60px;
             cursor: grab; -webkit-overflow-scrolling: touch;
-            outline: none; /* 隱藏程式化 focus 時的預設外框 */
         }
         .tree-container:active { cursor: grabbing; }
 
@@ -94,10 +93,6 @@
             padding-top: 40px; position: relative;
             display: flex; justify-content: center;
         }
-        
-        /* 🛡️ 修復 #4: 根層不需上方間距，避免多出 40px 空白 */
-        #rootTree { padding-top: 0; }
-
         .tree li {
             float: left; text-align: center; list-style-type: none;
             position: relative; padding: 40px 15px 0 15px; transition: all 0.3s;
@@ -129,9 +124,9 @@
             border-left: 2px solid #94a3b8; width: 0; height: 40px; margin-left: -1px;
         }
 
-        /* ============================================================
-           🔧 節點外觀與色彩
-           ============================================================ */
+        /* =========================================
+           節點外觀與色彩
+           ========================================= */
         .gate-wrapper { position: relative; display: inline-block; padding-bottom: 25px; }
         .node {
             background: #fff; border: 2px solid #cbd5e1; border-radius: 8px;
@@ -169,18 +164,14 @@
         .node.critical .title { color: #c2410c; }
         .node.normal { border-color: #cbd5e1; background-color: #ffffff; }
 
-        /* ============================================================
-           🔧 UI 互動元件 (按鈕、邏輯閘、提示框)
-           ============================================================ */
+        /* =========================================
+           UI 互動元件 (按鈕、邏輯閘、提示框)
+           ========================================= */
         .node-controls {
             display: none; position: absolute;
             top: -16px; right: -16px; gap: 4px; z-index: var(--z-controls);
         }
-        /* 🛡️ 修復 #2: 增加 focus-within，讓鍵盤 Tab 時也能顯示控制按鈕 */
-        .node:hover .node-controls,
-        .node:focus-within .node-controls { 
-            display: flex; 
-        } 
+        .node:hover .node-controls { display: flex; } 
         
         .ctrl-btn {
             width: 32px; height: 32px; border-radius: 50%; border: none;
@@ -201,8 +192,6 @@
             box-shadow: 0 2px 5px rgb(0 0 0 / 0.15); cursor: pointer; user-select: none;
         }
         .gate:hover { transform: translateX(-50%) scale(1.1); }
-        .gate:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
-        
         .gate.and { background-color: #fef08a; border: 2px solid #eab308; color: #a16207; }
         .gate.or { background-color: #e2e8f0; border: 2px solid #94a3b8; color: #475569; }
 
@@ -214,9 +203,9 @@
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
 
-        /* ============================================================
-           🔧 自訂對話框 Modal
-           ============================================================ */
+        /* =========================================
+           🛡️ 自訂對話框 Modal
+           ========================================= */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0, 0, 0, 0.5); z-index: var(--z-modal);
@@ -246,9 +235,9 @@
         .modal-btn-ok      { background: #3b82f6; color: white; }
         .modal-btn-ok:hover { background: #2563eb; }
 
-        /* ============================================================
+        /* =========================================
            📱 手機版響應式設計
-           ============================================================ */
+           ========================================= */
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; padding: 12px 15px; gap: 12px; }
             .header-title-wrapper { width: 100%; }
@@ -265,9 +254,9 @@
             .gate { width: 40px; height: 40px; font-size: 11px; bottom: -2px; }
         }
 
-        /* ============================================================
-           🖨️ 列印專用樣式 (@media print)
-           ============================================================ */
+        /* =========================================
+           列印專用樣式 (@media print)
+           ========================================= */
         @media print {
             @page { size: landscape; margin: 10mm; }
             body, html {
@@ -299,6 +288,7 @@
 </head>
 <body>
 
+    <!-- 🛡️ 加入 ARIA 無障礙屬性，預設 aria-hidden="true" -->
     <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
         <div class="modal-box" id="modalBox">
             <h3 id="modalTitle">提示</h3>
@@ -307,8 +297,10 @@
         </div>
     </div>
 
+    <!-- 全局列印縮放容器 -->
     <div id="printWrapper" style="display: flex; flex-direction: column; height: 100%; width: 100%;">
         
+        <!-- 標題與工具列 -->
         <div class="header">
             <div>
                 <div class="header-title-wrapper">
@@ -326,20 +318,21 @@
             <div class="toolbar">
                 <button type="button" class="btn-action btn-danger" id="btn-clear">🗑️ 清空</button>
                 <button type="button" class="btn-action btn-save" id="btn-export">💾 匯出存檔(.json)</button>
-                <!-- 檔案上傳被隱藏 -->
                 <input type="file" id="importFile" accept=".json" style="display: none;">
                 <button type="button" class="btn-action btn-load" id="btn-import">📂 匯入讀檔</button>
                 <button type="button" class="btn-action" id="btn-print">🖨️ 轉存PDF</button>
             </div>
         </div>
 
-        <div class="tree-container" id="treeContainer" tabindex="-1">
+        <!-- 樹狀圖區域 -->
+        <div class="tree-container" id="treeContainer">
             <div class="tree" id="mainTree">
                 <ul id="rootTree"></ul>
             </div>
         </div>
     </div>
 
+    <!-- 操作提示 -->
     <div class="instruction-toast">
         💡 <b>操作指南：</b><br>
         1. <span>點擊框框</span>：直接輸入文字，不必刪除預設提示字。<br>
@@ -349,79 +342,41 @@
     </div>
 
     <script>
+        // 將所有邏輯封裝，避免污染全域變數
         (() => {
             'use strict';
 
             const COLOR_CYCLE = ['normal', 'top', 'branch', 'critical'];
             
-            // DOM 元素模組頂層快取
+            // 🛡️ 採納建議：DOM 元素模組頂層快取，提升效能
             const treeContainer = document.getElementById('treeContainer');
-            const printWrapper  = document.getElementById('printWrapper');
-            const modalOverlay  = document.getElementById('modalOverlay');
-            const modalBox      = document.getElementById('modalBox');
-            const modalTitleEl  = document.getElementById('modalTitle');
+            const printWrapper = document.getElementById('printWrapper');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalBox = document.getElementById('modalBox');
+            const modalTitleEl = document.getElementById('modalTitle');
             const modalMessageEl = document.getElementById('modalMessage');
             const modalActionsEl = document.getElementById('modalActions');
-            const rootTree      = document.getElementById('rootTree');
-            const projectTitle  = document.getElementById('projectTitle');
             
             let elementToRestoreFocus = null;
-            let isDirty = false; // 追蹤是否有未儲存的變更
-            let isInitializing = true; // 避免初始化時觸發 AutoSave
 
             /* =========================================================
-               🛡️ UI 互動模組：自訂對話框 Modal 與 Focus Trap
+               🛡️ UI 互動模組：自訂對話框 Modal
                ========================================================= */
             function closeActiveModal() {
                 if (modalOverlay.classList.contains('active')) {
                     modalOverlay.classList.remove('active');
                     modalOverlay.setAttribute('aria-hidden', 'true');
                     
+                    // 🛡️ 採納建議：先保存並清空全域狀態，再執行焦點歸位，防止狀態污染
                     const target = elementToRestoreFocus;
                     elementToRestoreFocus = null;
                     
-                    // 🛡️ 修復 #8: 檢查元素是否仍在 DOM 中，若無則降級 focus 到畫布，避免 Focus 遺失
-                    if (target && target.isConnected) {
-                        target.focus();
-                    } else {
-                        treeContainer.focus();
-                    }
+                    if (target) target.focus();
                 }
             }
 
-            modalOverlay.addEventListener('keydown', function(e) {
-                if (e.key === 'Tab') {
-                    const focusable = modalOverlay.querySelectorAll('button:not([disabled])');
-                    if (focusable.length === 0) return;
-                    
-                    const firstEl = focusable[0];
-                    const lastEl = focusable[focusable.length - 1];
-
-                    if (e.shiftKey) { 
-                        if (document.activeElement === firstEl) {
-                            lastEl.focus();
-                            e.preventDefault();
-                        }
-                    } else { 
-                        if (document.activeElement === lastEl) {
-                            firstEl.focus();
-                            e.preventDefault();
-                        }
-                    }
-                }
-            });
-
-            function showModal({ title, message, type = 'confirm', isDanger = true, onConfirm, onCancel }) {
-                const VALID_TYPES = ['alert', 'confirm'];
-                if (!VALID_TYPES.includes(type)) {
-                    console.warn(`FTA Editor 警告: 未知的 Modal 類型 "${type}"，已自動降級為 "confirm"`);
-                    type = 'confirm';
-                }
-
+            function showModal({ title, message, type = 'confirm', onConfirm }) {
                 elementToRestoreFocus = document.activeElement;
-                
-                const ariaRole = (type === 'confirm' && isDanger) ? 'alertdialog' : 'dialog';
-                modalOverlay.setAttribute('role', ariaRole);
                 
                 modalTitleEl.textContent = title;
                 modalMessageEl.textContent = message;
@@ -442,14 +397,12 @@
                     btnCancel.type = 'button';
                     btnCancel.className = 'modal-btn modal-btn-cancel';
                     btnCancel.textContent = '取消';
-                    btnCancel.onclick = () => {
-                        closeActiveModal();
-                        if(onCancel) onCancel();
-                    };
+                    btnCancel.onclick = closeActiveModal;
 
                     const btnConfirm = document.createElement('button');
                     btnConfirm.type = 'button';
-                    btnConfirm.className = isDanger ? 'modal-btn modal-btn-confirm' : 'modal-btn modal-btn-ok';
+                    // 🛡️ 採納建議：區分 UI 語意，'warning' 為藍色中性確認，'confirm' (如刪除) 為紅色警告
+                    btnConfirm.className = type === 'warning' ? 'modal-btn modal-btn-ok' : 'modal-btn modal-btn-confirm';
                     btnConfirm.textContent = '確定';
                     btnConfirm.onclick = () => { 
                         const callback = onConfirm;
@@ -469,9 +422,6 @@
                 
                 modalOverlay.removeAttribute('aria-hidden'); 
                 modalOverlay.classList.add('active');
-
-                const firstBtn = modalOverlay.querySelector('button');
-                if (firstBtn) firstBtn.focus();
             }
 
             /* =========================================================
@@ -481,6 +431,7 @@
                 const li = document.createElement('li');
                 if (isRoot) li.id = 'rootNode';
 
+                // 深度限制保護
                 if (depth > 50) {
                     console.warn('FTA 警告：超過最大深度限制 (50層)，已停止渲染後續分支。');
                     return null; 
@@ -503,7 +454,6 @@
                     btnColor.type = 'button';
                     btnColor.className = 'ctrl-btn btn-color';
                     btnColor.title = '切換節點顏色';
-                    btnColor.setAttribute('aria-label', '切換節點顏色');
                     btnColor.textContent = '🎨';
                     controls.appendChild(btnColor);
                 }
@@ -512,7 +462,6 @@
                 btnAdd.type = 'button';
                 btnAdd.className = 'ctrl-btn btn-add';
                 btnAdd.title = '向下新增子節點';
-                btnAdd.setAttribute('aria-label', '向下新增子節點');
                 btnAdd.textContent = '➕';
                 controls.appendChild(btnAdd);
 
@@ -521,7 +470,6 @@
                     btnDel.type = 'button';
                     btnDel.className = 'ctrl-btn btn-del';
                     btnDel.title = '刪除此節點與下方分支';
-                    btnDel.setAttribute('aria-label', '刪除此節點與下方分支');
                     btnDel.textContent = '❌';
                     controls.appendChild(btnDel);
                 }
@@ -546,12 +494,6 @@
                 if (Array.isArray(data.children)) {
                     const validChildren = data.children.filter(child => child && typeof child === 'object' && !Array.isArray(child));
                     
-                    // 🛡️ 修復 #7: 限制單層最大節點數，防止極端惡意巨量節點癱瘓瀏覽器
-                    if (validChildren.length > 50) {
-                        console.warn('FTA 警告：單層子節點超過 50 個限制，已自動截斷以保護效能。');
-                        validChildren.length = 50;
-                    }
-
                     if (validChildren.length > 0) {
                         const ul = document.createElement('ul');
                         
@@ -567,13 +509,6 @@
                             const gateDiv = document.createElement('div');
                             gateDiv.className = `gate ${gateType} toggle-gate`;
                             gateDiv.textContent = gateType.toUpperCase();
-                            
-                            gateDiv.setAttribute('role', 'switch');
-                            gateDiv.setAttribute('tabindex', '0');
-                            const isAnd = gateType === 'and';
-                            gateDiv.setAttribute('aria-checked', isAnd ? 'true' : 'false');
-                            gateDiv.setAttribute('aria-label', `邏輯閘，目前為 ${gateType.toUpperCase()} (點擊或按空白鍵切換)`);
-                            
                             wrapper.appendChild(gateDiv);
                             li.appendChild(ul);
                         }
@@ -584,90 +519,15 @@
             }
 
             function initCanvas() {
-                isInitializing = true;
+                const rootTree = document.getElementById('rootTree');
                 rootTree.innerHTML = '';
-                const rootNode = createNodeDOM({}, true);
-                if (rootNode) {
-                    rootTree.appendChild(rootNode);
-                }
-                
-                // 檢查是否有未儲存的暫存檔
-                setTimeout(() => {
-                    const savedData = localStorage.getItem('fta_autosave');
-                    if (savedData) {
-                        showModal({
-                            title: '發現暫存檔',
-                            message: '系統偵測到您有未儲存的編輯紀錄。是否要回復上一次的進度？',
-                            type: 'confirm',
-                            isDanger: false,
-                            onConfirm: () => {
-                                try {
-                                    const parsed = JSON.parse(savedData);
-                                    if (parsed.projectTitle) projectTitle.textContent = parsed.projectTitle;
-                                    if (parsed.treeData) {
-                                        rootTree.innerHTML = '';
-                                        const restoredNode = createNodeDOM(parsed.treeData, true);
-                                        if (restoredNode) rootTree.appendChild(restoredNode);
-                                    }
-                                } catch (e) {
-                                    console.error('回復暫存檔失敗:', e);
-                                    localStorage.removeItem('fta_autosave');
-                                }
-                            },
-                            onCancel: () => {
-                                localStorage.removeItem('fta_autosave'); // 使用者不要，清空暫存
-                            }
-                        });
-                    }
-                    isInitializing = false;
-                }, 100);
+                rootTree.appendChild(createNodeDOM({}, true));
             }
             initCanvas(); 
 
             /* =========================================================
-               💾 架構 #5: AutoSave 自動存檔與離開防護
-               ========================================================= */
-            let autoSaveTimer;
-            function triggerAutoSave() {
-                if (isInitializing) return;
-                isDirty = true;
-                clearTimeout(autoSaveTimer);
-                autoSaveTimer = setTimeout(() => {
-                    // 自動存檔時不產生警告
-                    const treeData = serializeNode(document.getElementById('rootNode'), 0, { depthHit: false });
-                    if (treeData) {
-                        const pTitle = projectTitle.textContent.trim() || 'FTA_Project';
-                        localStorage.setItem('fta_autosave', JSON.stringify({ projectTitle: pTitle, treeData }));
-                    }
-                }, 1500); // 停止操作 1.5 秒後自動背景存檔
-            }
-
-            // 監聽畫布的所有結構改變與文字變更以觸發自動存檔
-            const observer = new MutationObserver(triggerAutoSave);
-            observer.observe(printWrapper, { childList: true, subtree: true, characterData: true });
-
-            // 離開網頁防護
-            window.addEventListener('beforeunload', (e) => {
-                if (isDirty) {
-                    e.preventDefault();
-                    e.returnValue = ''; // 標準做法，觸發瀏覽器提示
-                }
-            });
-
-            /* =========================================================
                🖱️ 畫布互動與事件委派
                ========================================================= */
-            // 🛡️ 修復 #1: 提取 ToggleGate 共用邏輯，遵守 DRY 原則
-            function toggleGateLogic(target) {
-                const isOr = target.classList.contains('or');
-                const nextType = isOr ? 'AND' : 'OR';
-                target.className = `gate ${isOr ? 'and' : 'or'} toggle-gate`;
-                target.textContent = nextType;
-                target.setAttribute('aria-checked', isOr ? 'true' : 'false');
-                target.setAttribute('aria-label', `邏輯閘，目前為 ${nextType} (點擊或按空白鍵切換)`);
-                triggerAutoSave();
-            }
-
             treeContainer.addEventListener('click', function(e) {
                 const target = e.target;
 
@@ -680,10 +540,6 @@
                         const gate = document.createElement('div');
                         gate.className = 'gate or toggle-gate';
                         gate.textContent = 'OR';
-                        gate.setAttribute('role', 'switch');
-                        gate.setAttribute('tabindex', '0');
-                        gate.setAttribute('aria-checked', 'false');
-                        gate.setAttribute('aria-label', `邏輯閘，目前為 OR (點擊或按空白鍵切換)`);
                         wrapper.appendChild(gate);
                         
                         ul = document.createElement('ul');
@@ -691,7 +547,6 @@
                     }
                     const newNode = createNodeDOM({}, false);
                     if (newNode) ul.appendChild(newNode);
-                    triggerAutoSave();
                 }
                 
                 if (target.closest('.btn-del')) {
@@ -702,7 +557,6 @@
                         title: '確認刪除',
                         message: '確定要刪除此節點及其下方的所有分支嗎？此操作無法復原。',
                         type: 'confirm',
-                        isDanger: true,
                         onConfirm: () => {
                             let currUl = li.parentElement;
                             li.remove(); 
@@ -717,13 +571,14 @@
                                 
                                 currUl = parentLi.parentElement; 
                             }
-                            triggerAutoSave();
                         }
                     });
                 }
                 
                 if (target.classList.contains('toggle-gate')) {
-                    toggleGateLogic(target);
+                    const isOr = target.classList.contains('or');
+                    target.className = `gate ${isOr ? 'and' : 'or'} toggle-gate`;
+                    target.textContent = isOr ? 'AND' : 'OR';
                 }
                 
                 if (target.closest('.btn-color')) {
@@ -731,7 +586,6 @@
                     const currentClass = COLOR_CYCLE.find(c => node.classList.contains(c)) || 'normal';
                     const nextClass = COLOR_CYCLE[(COLOR_CYCLE.indexOf(currentClass) + 1) % COLOR_CYCLE.length];
                     node.classList.replace(currentClass, nextClass);
-                    triggerAutoSave();
                 }
             });
 
@@ -756,41 +610,48 @@
                 }
             });
 
-            // 🛡️ 修復 #3: 使用正則表達式徹底清除瀏覽器殘留的空行符號，保證 :empty CSS 生效
-            const cleanEmptyContenteditable = (el) => {
-                if (el.hasAttribute('contenteditable')) {
-                    if (!el.textContent.replace(/\n/g, '').trim()) {
-                        el.innerHTML = '';
-                    }
-                }
-            };
-
             printWrapper.addEventListener('input', function(e) {
-                const target = e.target;
-                if (!target.hasAttribute('contenteditable')) return;
-                
-                cleanEmptyContenteditable(target);
-                
-                if (target.id === 'projectTitle') {
-                    if (target.textContent.length > 100) {
-                        const truncated = target.textContent.substring(0, 100);
-                        target.textContent = truncated; 
-                        
-                        const textNode = target.firstChild;
-                        if (textNode) {
-                            const range = document.createRange();
-                            range.setStart(textNode, truncated.length);
-                            range.collapse(true);
-                            const sel = window.getSelection();
-                            sel.removeAllRanges();
-                            sel.addRange(range);
-                        }
+                if (e.target.id === 'projectTitle') return; 
+                if (e.target.hasAttribute('contenteditable')) {
+                    const html = e.target.innerHTML;
+                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
+                        e.target.innerHTML = '';
                     }
                 }
             });
 
-            printWrapper.addEventListener('focusout', function(e) {
-                cleanEmptyContenteditable(e.target);
+            // 處理專案標題的特殊限制與清理
+            document.getElementById('projectTitle').addEventListener('input', function(e) {
+                e.stopPropagation(); // 🛡️ 採納建議：阻斷冒泡，避免外層無效執行
+                
+                const html = this.innerHTML;
+                if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
+                    this.innerHTML = '';
+                }
+                
+                if (this.textContent.length > 100) {
+                    const truncated = this.textContent.substring(0, 100);
+                    this.textContent = truncated; 
+                    
+                    const textNode = this.firstChild;
+                    if (textNode) {
+                        const range = document.createRange();
+                        range.setStart(textNode, truncated.length);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            });
+
+            document.addEventListener('focusout', function(e) {
+                if (e.target.hasAttribute('contenteditable')) {
+                    const html = e.target.innerHTML;
+                    if (html === '<br>' || html === '<div><br></div>' || html === '&nbsp;') {
+                        e.target.innerHTML = '';
+                    }
+                }
             });
 
             document.addEventListener('keydown', function(e) {
@@ -801,11 +662,6 @@
                 if (e.key === 'Enter' && (e.target.classList.contains('title') || e.target.id === 'projectTitle')) {
                     e.preventDefault();
                     e.target.blur();
-                }
-
-                if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('toggle-gate')) {
-                    e.preventDefault(); 
-                    toggleGateLogic(e.target);
                 }
             });
 
@@ -843,7 +699,6 @@
             };
 
             const onDragEnd = () => {
-                if (!isDown) return; 
                 isDown = false;
                 treeContainer.style.cursor = 'grab';
                 if (rafId) {
@@ -859,25 +714,13 @@
 
             const isInteractive = (el) => el.closest('[contenteditable]') || el.closest('.ctrl-btn') || el.closest('.gate');
 
-            // 🛡️ 修復 #10: 在畫布上按下 mousedown 時阻止預設行為，防止選取文字干擾拖曳
-            treeContainer.addEventListener('mousedown', (e) => { 
-                if (!isInteractive(e.target)) {
-                    e.preventDefault();
-                    onDragStart(e.pageX, e.pageY); 
-                }
-            });
+            treeContainer.addEventListener('mousedown', (e) => { if (!isInteractive(e.target)) onDragStart(e.pageX, e.pageY); });
             treeContainer.addEventListener('mousemove', (e) => { if (isDown) { e.preventDefault(); onDragMove(e.pageX, e.pageY); }});
             treeContainer.addEventListener('mouseup', onDragEnd);
             treeContainer.addEventListener('mouseleave', onDragEnd);
 
-            // 🛡️ 搭配 { passive: false } 阻止手機端原生下拉更新 / 捲動干擾
             treeContainer.addEventListener('touchstart', (e) => { if (!isInteractive(e.target)) onDragStart(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
-            treeContainer.addEventListener('touchmove', (e) => { 
-                if (isDown) {
-                    e.preventDefault(); 
-                    onDragMove(e.touches[0].pageX, e.touches[0].pageY); 
-                }
-            }, { passive: false });
+            treeContainer.addEventListener('touchmove', (e) => { if (isDown) onDragMove(e.touches[0].pageX, e.touches[0].pageY); }, { passive: true });
             treeContainer.addEventListener('touchend', onDragEnd);
 
             /* =========================================================
@@ -888,39 +731,19 @@
                     title: '清空畫布',
                     message: '這將會清除您目前編輯的所有內容，並恢復為初始狀態。確定執行？',
                     type: 'confirm',
-                    isDanger: true,
                     onConfirm: () => {
-                        projectTitle.textContent = '互動式 FTA 故障樹編輯器';
+                        document.getElementById('projectTitle').textContent = '互動式 FTA 故障樹編輯器';
                         initCanvas();
-                        localStorage.removeItem('fta_autosave'); // 清空後同時移除暫存檔
-                        isDirty = false;
                     }
                 });
             });
 
             document.getElementById('btn-export').addEventListener('click', exportTree);
-            document.getElementById('btn-import').addEventListener('click', () => {
-                // 🛡️ 修復 UX #12: 匯入前先警告將覆蓋現有資料
-                const hasChildren = rootTree.querySelectorAll('li').length > 1;
-                const rootText = rootTree.querySelector('.title').textContent.trim();
-                const isModified = hasChildren || rootText !== '頂事件 (Top Event)';
-                
-                if (isModified) {
-                    showModal({
-                        title: '確認匯入',
-                        message: '匯入新檔案將完全覆蓋您目前的編輯內容。確定要繼續嗎？',
-                        type: 'confirm',
-                        isDanger: true,
-                        onConfirm: () => document.getElementById('importFile').click()
-                    });
-                } else {
-                    document.getElementById('importFile').click();
-                }
-            });
-            
+            document.getElementById('btn-import').addEventListener('click', () => document.getElementById('importFile').click());
             document.getElementById('btn-print').addEventListener('click', () => window.print());
             document.getElementById('importFile').addEventListener('change', importTree);
 
+            // 🛡️ 採納建議：給定預設值防衛
             function serializeNode(liElement, depth = 0, ctx = { depthHit: false }) {
                 if (depth > 50) {
                     ctx.depthHit = true;
@@ -953,9 +776,9 @@
                 try {
                     const ctx = { depthHit: false }; 
                     const treeData = serializeNode(document.getElementById('rootNode'), 0, ctx);
-                    const pTitle = projectTitle.textContent.trim() || 'FTA_Project';
+                    const projectTitle = document.getElementById('projectTitle').textContent.trim() || 'FTA_Project';
                     
-                    const exportData = { projectTitle: pTitle, treeData };
+                    const exportData = { projectTitle, treeData };
                     
                     const triggerDownload = () => {
                         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -963,7 +786,7 @@
                         
                         const a = document.createElement('a');
                         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
-                        const safeTitle = pTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
+                        const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, "_").substring(0, 30);
                         
                         a.href = url;
                         a.download = `FTA_${safeTitle}_${dateStr}.json`;
@@ -971,15 +794,13 @@
                         a.click();
                         a.remove();
                         setTimeout(() => URL.revokeObjectURL(url), 1000);
-                        isDirty = false; // 匯出後視為已儲存
                     };
 
                     if (ctx.depthHit) {
                         showModal({ 
                             title: '深度限制警告', 
                             message: '您的樹狀圖包含超過 50 層的極深分支。為保護檔案結構，過深的分支未被完整匯出。是否繼續下載？', 
-                            type: 'confirm', 
-                            isDanger: false, 
+                            type: 'warning', // 🛡️ 採納建議：使用中性的 warning 藍色按鈕
                             onConfirm: triggerDownload
                         });
                     } else {
@@ -1023,17 +844,12 @@
                         }
 
                         if (parsedData.projectTitle) {
-                            projectTitle.textContent = String(parsedData.projectTitle).substring(0, 100);
+                            document.getElementById('projectTitle').textContent = String(parsedData.projectTitle).substring(0, 100);
                         }
 
+                        const rootTree = document.getElementById('rootTree');
                         rootTree.innerHTML = ''; 
-                        const rootNode = createNodeDOM(treeData, true);
-                        if (rootNode) {
-                            rootTree.appendChild(rootNode);
-                        }
-                        
-                        isDirty = false; // 剛匯入視為乾淨狀態
-                        triggerAutoSave();
+                        rootTree.appendChild(createNodeDOM(treeData, true));
                         
                     } catch (error) {
                         showModal({
@@ -1058,15 +874,12 @@
                 
                 printWrapper.style.transform = 'none';
                 
-                const originalOverflow = treeContainer.style.overflow;
-                treeContainer.style.overflow = 'visible';
-                const rect = treeContent.getBoundingClientRect();
-                const currentTreeWidth = rect.width;
-                const currentTreeHeight = rect.height;
-                treeContainer.style.overflow = originalOverflow;
-
                 const MAX_PRINT_WIDTH = 1050; 
+                // 680px 預估來自 A4 橫向 (Landscape) 扣除邊界後的安全可視高度
                 const MAX_PRINT_HEIGHT = 680;
+                
+                const currentTreeWidth = treeContent.scrollWidth;
+                const currentTreeHeight = treeContent.scrollHeight;
 
                 const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
                 const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100);
@@ -1082,8 +895,6 @@
                     printWrapper.style.transform = `scale(${scaleRatio})`;
                     printWrapper.style.transformOrigin = 'top center';
                     printWrapper.style.width = `${(1 / scaleRatio) * 100}%`;
-                    // 🛡️ 修復 #9: 補充 Firefox 的高度補償
-                    printWrapper.style.height = `${(1 / scaleRatio) * 100}%`;
                     printWrapper.style.overflow = 'hidden'; 
                 }
             });
@@ -1093,11 +904,10 @@
                 printWrapper.style.transformOrigin = '';
                 printWrapper.style.zoom = '';
                 printWrapper.style.width = '';
-                printWrapper.style.height = '';
                 printWrapper.style.overflow = '';
             });
 
-        })(); 
+        })(); // 閉包結束
     </script>
 </body>
 </html>
