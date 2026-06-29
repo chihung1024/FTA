@@ -292,24 +292,33 @@
             .header-title-wrapper { justify-content: center !important; }
             .editable-title { padding: 0 !important; border: none !important; background-color: transparent !important; }
 
+            #printWrapper {
+                height: auto !important; min-height: 0 !important;
+                width: 100% !important; overflow: visible !important;
+            }
             .tree-container {
-                overflow: visible !important; height: auto !important; padding: 4mm 0 0 0 !important; 
-                display: flex !important; justify-content: center !important; align-items: flex-start !important; 
+                overflow: visible !important; height: auto !important; min-height: 0 !important;
+                padding: 6mm 0 0 0 !important;
+                display: block !important; text-align: center !important;
             }
             .tree {
+                display: inline-flex !important; justify-content: center !important;
                 padding: 0 !important; margin: 0 auto !important; min-width: max-content !important;
+                transform: scale(var(--print-scale, 1)) !important;
                 transform-origin: top center !important;
+                width: var(--print-width, auto) !important;
+                height: var(--print-height, auto) !important;
             }
-            .tree ul { padding-top: 26px !important; }
-            .tree li { padding: 28px 9px 0 9px !important; }
-            .tree li::after, .tree ul ul::before { height: 28px !important; }
-            .tree li:first-child::before, .tree li:last-child::before { height: 28px !important; }
+            .tree ul { padding-top: 30px !important; }
+            .tree li { padding: 32px 12px 0 12px !important; }
+            .tree li::after, .tree ul ul::before { height: 32px !important; }
+            .tree li:first-child::before, .tree li:last-child::before { height: 32px !important; }
             .node, .gate-wrapper, li, ul { page-break-inside: avoid !important; break-inside: avoid !important; }
-            .node { min-width: 150px !important; max-width: 190px !important; padding: 10px 12px !important; }
-            .title { font-size: 13px !important; margin-bottom: 5px !important; }
-            .desc { font-size: 10px !important; line-height: 1.35 !important; }
-            .gate { width: 32px !important; height: 32px !important; font-size: 9px !important; bottom: 0 !important; }
-            .gate-wrapper { padding-bottom: 18px !important; }
+            .node { min-width: 170px !important; max-width: 220px !important; padding: 12px 14px !important; }
+            .title { font-size: 14px !important; margin-bottom: 6px !important; }
+            .desc { font-size: 11px !important; line-height: 1.4 !important; }
+            .gate { width: 34px !important; height: 34px !important; font-size: 10px !important; bottom: 0 !important; }
+            .gate-wrapper { padding-bottom: 20px !important; }
             .node, .gate { box-shadow: none !important; border-width: 1.5px !important; }
             .tree li::before, .tree li::after, .tree ul ul::before { border-radius: 0 !important; }
         }
@@ -782,7 +791,7 @@
 
             document.getElementById('btn-export').addEventListener('click', exportTree);
             document.getElementById('btn-import').addEventListener('click', () => document.getElementById('importFile').click());
-            document.getElementById('btn-print').addEventListener('click', () => window.print());
+            document.getElementById('btn-print').addEventListener('click', printAsPdf);
             document.getElementById('importFile').addEventListener('change', importTree);
 
             // 🛡️ 採納建議：給定預設值防衛
@@ -911,40 +920,41 @@
             /* =========================================================
                🖨️ 智慧列印縮放演算法 (維持比例不跑版)
                ========================================================= */
-            window.addEventListener('beforeprint', () => {
-                const treeContent = document.getElementById('mainTree'); 
-                
-                printWrapper.style.transform = 'none';
-                treeContent.style.transform = 'none';
-                
-                // A4 橫向在 96dpi 下約為 1123 x 794px，扣除 10mm 邊界與標題列後保留安全可視區。
-                const MAX_PRINT_WIDTH = 1047;
-                const MAX_PRINT_HEIGHT = 660;
-                
-                const currentTreeWidth = Math.max(treeContent.scrollWidth, treeContent.getBoundingClientRect().width, 1);
-                const currentTreeHeight = Math.max(treeContent.scrollHeight, treeContent.getBoundingClientRect().height, 1);
-
-                const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
-                const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
-                
-                const scaleRatio = Math.min(widthRatio, heightRatio, 1.15);
-
-                treeContent.style.transform = `scale(${scaleRatio})`;
-                treeContent.style.width = `${currentTreeWidth * scaleRatio}px`;
-                treeContent.style.height = `${currentTreeHeight * scaleRatio}px`;
-            });
-
-            window.addEventListener('afterprint', () => {
+            function resetPrintLayout() {
                 const treeContent = document.getElementById('mainTree');
-                treeContent.style.transform = '';
-                treeContent.style.width = '';
-                treeContent.style.height = '';
-                printWrapper.style.transform = '';
-                printWrapper.style.transformOrigin = '';
-                printWrapper.style.zoom = '';
-                printWrapper.style.width = '';
-                printWrapper.style.overflow = '';
-            });
+                treeContent.style.removeProperty('--print-scale');
+                treeContent.style.removeProperty('--print-width');
+                treeContent.style.removeProperty('--print-height');
+            }
+
+            function preparePrintLayout() {
+                const treeContent = document.getElementById('mainTree');
+                resetPrintLayout();
+
+                const naturalWidth = Math.max(treeContent.scrollWidth, treeContent.getBoundingClientRect().width, 1);
+                const naturalHeight = Math.max(treeContent.scrollHeight, treeContent.getBoundingClientRect().height, 1);
+
+                // A4 橫向扣除 @page 10mm 邊界與標題後的安全區。允許放大，避免小型樹狀圖輸出過小。
+                const PRINT_SAFE_WIDTH = 1040;
+                const PRINT_SAFE_HEIGHT = 620;
+                const scaleRatio = Math.min(
+                    PRINT_SAFE_WIDTH / naturalWidth,
+                    PRINT_SAFE_HEIGHT / naturalHeight,
+                    2.4
+                );
+
+                treeContent.style.setProperty('--print-scale', String(scaleRatio));
+                treeContent.style.setProperty('--print-width', `${naturalWidth * scaleRatio}px`);
+                treeContent.style.setProperty('--print-height', `${naturalHeight * scaleRatio}px`);
+            }
+
+            function printAsPdf() {
+                preparePrintLayout();
+                requestAnimationFrame(() => window.print());
+            }
+
+            window.addEventListener('beforeprint', preparePrintLayout);
+            window.addEventListener('afterprint', resetPrintLayout);
 
         })(); // 閉包結束
     </script>
