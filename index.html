@@ -197,11 +197,27 @@
 
         .instruction-toast {
             position: fixed; bottom: 20px; right: 20px;
-            background: rgba(15, 23, 42, 0.85); color: white;
-            padding: 12px 20px; border-radius: 8px; font-size: 13px; line-height: 1.6;
-            pointer-events: none; z-index: var(--z-toast); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            max-width: min(520px, calc(100vw - 40px));
+            background: rgba(15, 23, 42, 0.88); color: white;
+            padding: 12px 44px 12px 20px; border-radius: 8px; font-size: 13px; line-height: 1.6;
+            z-index: var(--z-toast); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, opacity 0.2s ease, max-width 0.2s ease;
         }
         .instruction-toast span { color: #fbbf24; font-weight: bold; }
+        .instruction-toast-toggle {
+            position: absolute; top: 8px; right: 8px;
+            width: 28px; height: 28px; border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 999px; background: rgba(255,255,255,0.12); color: #fff;
+            cursor: pointer; font-size: 16px; line-height: 1;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .instruction-toast-toggle:hover { background: rgba(255,255,255,0.22); }
+        .instruction-toast-body { padding-right: 4px; }
+        .instruction-toast.collapsed {
+            max-width: 52px; padding: 10px; overflow: hidden;
+        }
+        .instruction-toast.collapsed .instruction-toast-body { display: none; }
+        .instruction-toast.collapsed .instruction-toast-toggle { position: static; }
 
         /* =========================================
            🛡️ 自訂對話框 Modal
@@ -265,6 +281,7 @@
                 margin: 0 !important; padding: 0 !important;
             }
             .toolbar, .instruction-toast, .node-controls, .legend, .modal-overlay { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             
             .header {
                 box-shadow: none !important; padding: 0 0 15px 0 !important;
@@ -276,12 +293,24 @@
             .editable-title { padding: 0 !important; border: none !important; background-color: transparent !important; }
 
             .tree-container {
-                overflow: hidden !important; height: auto !important; padding: 10px 0 0 0 !important; 
+                overflow: visible !important; height: auto !important; padding: 4mm 0 0 0 !important; 
                 display: flex !important; justify-content: center !important; align-items: flex-start !important; 
             }
-            .tree { padding: 0 !important; margin: 0 auto !important; min-width: 0 !important; }
+            .tree {
+                padding: 0 !important; margin: 0 auto !important; min-width: max-content !important;
+                transform-origin: top center !important;
+            }
+            .tree ul { padding-top: 26px !important; }
+            .tree li { padding: 28px 9px 0 9px !important; }
+            .tree li::after, .tree ul ul::before { height: 28px !important; }
+            .tree li:first-child::before, .tree li:last-child::before { height: 28px !important; }
             .node, .gate-wrapper, li, ul { page-break-inside: avoid !important; break-inside: avoid !important; }
-            .node, .gate { box-shadow: none !important; border-width: 2px !important; }
+            .node { min-width: 150px !important; max-width: 190px !important; padding: 10px 12px !important; }
+            .title { font-size: 13px !important; margin-bottom: 5px !important; }
+            .desc { font-size: 10px !important; line-height: 1.35 !important; }
+            .gate { width: 32px !important; height: 32px !important; font-size: 9px !important; bottom: 0 !important; }
+            .gate-wrapper { padding-bottom: 18px !important; }
+            .node, .gate { box-shadow: none !important; border-width: 1.5px !important; }
             .tree li::before, .tree li::after, .tree ul ul::before { border-radius: 0 !important; }
         }
     </style>
@@ -333,12 +362,15 @@
     </div>
 
     <!-- 操作提示 -->
-    <div class="instruction-toast">
-        💡 <b>操作指南：</b><br>
-        1. <span>點擊框框</span>：直接輸入文字，不必刪除預設提示字。<br>
-        2. <span>滑鼠移至節點</span>：出現「➕ 新增」、「❌ 刪除」、「🎨 換色」。<br>
-        3. <span>點擊 AND/OR 圓圈</span>：一鍵切換邏輯閘類型。<br>
-        4. <span>資料備份</span>：可匯出存成 JSON 檔，之後再匯入接續編輯。
+    <div class="instruction-toast" id="instructionToast">
+        <button type="button" class="instruction-toast-toggle" id="instructionToastToggle" aria-label="收合操作指南" aria-expanded="true" title="收合操作指南">×</button>
+        <div class="instruction-toast-body">
+            💡 <b>操作指南：</b><br>
+            1. <span>點擊框框</span>：直接輸入文字，不必刪除預設提示字。<br>
+            2. <span>滑鼠移至節點</span>：出現「➕ 新增」、「❌ 刪除」、「🎨 換色」。<br>
+            3. <span>點擊 AND/OR 圓圈</span>：一鍵切換邏輯閘類型。<br>
+            4. <span>資料備份</span>：可匯出存成 JSON 檔，之後再匯入接續編輯。
+        </div>
     </div>
 
     <script>
@@ -356,6 +388,8 @@
             const modalTitleEl = document.getElementById('modalTitle');
             const modalMessageEl = document.getElementById('modalMessage');
             const modalActionsEl = document.getElementById('modalActions');
+            const instructionToast = document.getElementById('instructionToast');
+            const instructionToastToggle = document.getElementById('instructionToastToggle');
             
             let elementToRestoreFocus = null;
 
@@ -654,6 +688,14 @@
                 }
             });
 
+            instructionToastToggle.addEventListener('click', () => {
+                const isCollapsed = instructionToast.classList.toggle('collapsed');
+                instructionToastToggle.setAttribute('aria-expanded', String(!isCollapsed));
+                instructionToastToggle.setAttribute('aria-label', isCollapsed ? '展開操作指南' : '收合操作指南');
+                instructionToastToggle.title = isCollapsed ? '展開操作指南' : '收合操作指南';
+                instructionToastToggle.textContent = isCollapsed ? '💡' : '×';
+            });
+
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     closeActiveModal();
@@ -873,33 +915,30 @@
                 const treeContent = document.getElementById('mainTree'); 
                 
                 printWrapper.style.transform = 'none';
+                treeContent.style.transform = 'none';
                 
-                const MAX_PRINT_WIDTH = 1050; 
-                // 680px 預估來自 A4 橫向 (Landscape) 扣除邊界後的安全可視高度
-                const MAX_PRINT_HEIGHT = 680;
+                // A4 橫向在 96dpi 下約為 1123 x 794px，扣除 10mm 邊界與標題列後保留安全可視區。
+                const MAX_PRINT_WIDTH = 1047;
+                const MAX_PRINT_HEIGHT = 660;
                 
-                const currentTreeWidth = treeContent.scrollWidth;
-                const currentTreeHeight = treeContent.scrollHeight;
+                const currentTreeWidth = Math.max(treeContent.scrollWidth, treeContent.getBoundingClientRect().width, 1);
+                const currentTreeHeight = Math.max(treeContent.scrollHeight, treeContent.getBoundingClientRect().height, 1);
 
-                const widthRatio = MAX_PRINT_WIDTH / Math.max(currentTreeWidth, 800);
-                const heightRatio = MAX_PRINT_HEIGHT / (currentTreeHeight + 100);
+                const widthRatio = MAX_PRINT_WIDTH / currentTreeWidth;
+                const heightRatio = MAX_PRINT_HEIGHT / currentTreeHeight;
                 
-                let scaleRatio = Math.min(widthRatio, heightRatio);
-                if (scaleRatio > 1.25) scaleRatio = 1.25;
+                const scaleRatio = Math.min(widthRatio, heightRatio, 1.15);
 
-                const supportsZoom = CSS.supports('zoom', '1');
-                
-                if (supportsZoom) {
-                    printWrapper.style.zoom = scaleRatio;
-                } else {
-                    printWrapper.style.transform = `scale(${scaleRatio})`;
-                    printWrapper.style.transformOrigin = 'top center';
-                    printWrapper.style.width = `${(1 / scaleRatio) * 100}%`;
-                    printWrapper.style.overflow = 'hidden'; 
-                }
+                treeContent.style.transform = `scale(${scaleRatio})`;
+                treeContent.style.width = `${currentTreeWidth * scaleRatio}px`;
+                treeContent.style.height = `${currentTreeHeight * scaleRatio}px`;
             });
 
             window.addEventListener('afterprint', () => {
+                const treeContent = document.getElementById('mainTree');
+                treeContent.style.transform = '';
+                treeContent.style.width = '';
+                treeContent.style.height = '';
                 printWrapper.style.transform = '';
                 printWrapper.style.transformOrigin = '';
                 printWrapper.style.zoom = '';
