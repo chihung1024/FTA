@@ -187,6 +187,8 @@ button, input, select { font: inherit; }
 #printTreeHost > ul { padding-top: 0; }
 #printTreeHost ul { padding-top: var(--print-level-gap); }
 #printTreeHost li { padding: var(--print-level-gap) var(--print-h-gap) 0; }
+/* A single-child branch has no li pseudo-line. Keep its node directly after the parent ul connector. */
+#printTreeHost li:only-child { padding-top: 0; }
 #printTreeHost li::after,
 #printTreeHost ul ul::before { height: var(--print-level-gap); }
 #printTreeHost li:first-child::before,
