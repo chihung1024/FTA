@@ -1,60 +1,75 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-<title>互動式 FTA 故障樹編輯器</title>
-<link href="styles.css" rel="stylesheet"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>互動式 FTA 故障樹編輯器</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div aria-hidden="true" aria-labelledby="modalTitle" aria-modal="true" class="modal-overlay" id="modalOverlay" role="dialog">
-<div class="modal-box" role="document">
-<h3 id="modalTitle">提示</h3>
-<p id="modalMessage"></p>
-<div class="modal-actions" id="modalActions"></div>
-</div>
-</div>
-<header class="header">
-<div>
-<div class="header-title-wrapper">
-<span aria-hidden="true" style="font-size:20px">🛠️</span>
-<div class="editable-title" contenteditable="true" id="projectTitle" spellcheck="false">互動式 FTA 故障樹編輯器</div>
-</div>
-<div class="legend">
-<span>🎨 節點顏色代表：</span>
-<span style="color:#ef4444;font-weight:700">紅色(頂事件)</span><span>|</span>
-<span style="color:#3b82f6;font-weight:700">藍色(主分支)</span><span>|</span>
-<span style="color:#f97316;font-weight:700">橘色(關鍵路徑)</span><span>|</span>
-<span style="color:#64748b;font-weight:700">白色(基本事件)</span>
-</div>
-</div>
-<div class="toolbar">
-<button class="btn-action btn-danger" id="btn-clear" type="button">🗑️ 清空</button>
-<button class="btn-action btn-save" id="btn-export" type="button">💾 匯出存檔(.json)</button>
-<input accept=".json,application/json" hidden id="importFile" type="file"/>
-<button class="btn-action btn-load" id="btn-import" type="button">📂 匯入讀檔</button>
-<button class="btn-action" id="btn-print" type="button">🖨️ 轉存PDF</button>
-</div>
-</header>
-<main id="editorShell">
-<div class="tree-container" id="treeContainer">
-<div class="tree" id="mainTree"><ul id="rootTree"></ul></div>
-</div>
-</main>
-<div class="instruction-toast" id="instructionToast">
-<button aria-expanded="true" aria-label="收合操作指南" class="instruction-toast-toggle" id="instructionToastToggle" type="button">×</button>
-<div class="instruction-toast-body">
-💡 <b>操作指南：</b><br/>
-1. <span>點擊框框</span>：直接輸入文字。<br/>
-2. <span>滑鼠移至節點</span>：新增、刪除或換色。<br/>
-3. <span>點擊 AND/OR 圓圈</span>：切換邏輯閘。<br/>
-4. <span>資料備份</span>：匯出 JSON 後可再次匯入。
-</div>
-</div>
-<section aria-hidden="true" id="printDocument">
-<div id="printHeader"></div>
-<div id="printViewport"><div class="tree" id="printTreeHost"></div></div>
-</section>
-<script defer src="app.js"></script>
+  <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-box" role="document">
+      <h3 id="modalTitle">提示</h3>
+      <p id="modalMessage"></p>
+      <div id="modalActions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div>
+      <div class="header-title-wrapper">
+        <span aria-hidden="true" style="font-size:20px">🛠️</span>
+        <div id="projectTitle" class="editable-title" contenteditable="true" spellcheck="false">互動式 FTA 故障樹編輯器</div>
+      </div>
+      <div class="legend">
+        <span>🎨 節點顏色代表：</span>
+        <span style="color:#ef4444;font-weight:700">紅色(頂事件)</span><span>|</span>
+        <span style="color:#3b82f6;font-weight:700">藍色(主分支)</span><span>|</span>
+        <span style="color:#f97316;font-weight:700">橘色(關鍵路徑)</span><span>|</span>
+        <span style="color:#64748b;font-weight:700">白色(基本事件)</span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="btn-clear" class="btn-action btn-danger" type="button">🗑️ 清空</button>
+      <button id="btn-export" class="btn-action btn-save" type="button">💾 匯出存檔(.json)</button>
+      <input id="importFile" type="file" accept=".json,application/json" hidden>
+      <button id="btn-import" class="btn-action btn-load" type="button">📂 匯入讀檔</button>
+      <button id="btn-print" class="btn-action" type="button">🖨️ 轉存PDF</button>
+    </div>
+  </header>
+
+  <main id="editorShell">
+    <div id="treeContainer" class="tree-container">
+      <div id="mainTree" class="tree"><ul id="rootTree"></ul></div>
+    </div>
+  </main>
+
+  <div id="instructionToast" class="instruction-toast">
+    <button id="instructionToastToggle" class="instruction-toast-toggle" type="button" aria-expanded="true" aria-label="收合操作指南">×</button>
+    <div class="instruction-toast-body">
+      💡 <b>操作指南：</b><br>
+      1. <span>點擊框框</span>：直接輸入文字。<br>
+      2. <span>滑鼠移至節點</span>：新增、刪除或換色。<br>
+      3. <span>點擊 AND/OR 圓圈</span>：切換邏輯閘。<br>
+      4. <span>資料備份</span>：匯出 JSON 後可再次匯入。
+    </div>
+  </div>
+
+  <section id="printDocument" aria-hidden="true">
+    <header id="printHeader">
+      <div class="print-kicker">FAULT TREE ANALYSIS / 故障樹分析</div>
+      <div id="printTitle"></div>
+      <div id="printMeta"></div>
+    </header>
+    <div id="printViewport">
+      <div id="printTreeHost" class="tree"></div>
+    </div>
+    <footer id="printFooter">
+      <span>FTA REPORT</span>
+      <span id="printDate"></span>
+    </footer>
+  </section>
+
+  <script src="app.js" defer></script>
 </body>
 </html>
